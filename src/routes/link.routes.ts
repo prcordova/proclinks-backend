@@ -23,16 +23,16 @@ router.get('/', (req: Request, res: Response) =>
   linkController.listLinks(req as AuthRequest, res)
 )
 
+router.post('/reorder', (req: Request, res: Response) => 
+  linkController.reorderLinks(req as AuthRequest, res)
+)
+
 router.put('/:id', (req: Request, res: Response) => 
   linkController.updateLink(req as AuthRequest, res)
 )
 
 router.delete('/:id', (req: Request, res: Response) => 
   linkController.deleteLink(req as AuthRequest, res)
-)
-
-router.post('/reorder', (req: Request, res: Response) => 
-  linkController.reorderLinks(req as AuthRequest, res)
 )
 
 router.get('/:username', (req, res) => linkController.getPublicLinks(req, res))

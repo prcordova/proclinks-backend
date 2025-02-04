@@ -26,7 +26,7 @@ const linkSchema = new Schema({
   },
   order: {
     type: Number,
-    required: true
+    default: 0
   },
   likes: {
     type: Number,

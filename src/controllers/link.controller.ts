@@ -57,7 +57,7 @@ export const listLinks = async (req: AuthRequest, res: Response) => {
 
 export const updateLink = async (req: AuthRequest, res: Response) => {
   const { id } = req.params
-  const { title, url, visible } = req.body
+  const { title, url, visible, order } = req.body
   const userId = req.user.id
 
   try {
@@ -66,15 +66,24 @@ export const updateLink = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Link não encontrado' })
     }
 
+    // Atualiza apenas os campos que foram enviados
+    const updateData: any = {}
+    if (title !== undefined) updateData.title = title
+    if (url !== undefined) updateData.url = url
+    if (visible !== undefined) updateData.visible = visible
+    if (order !== undefined) updateData.order = order
+
     const updatedLink = await Link.findByIdAndUpdate(
       id,
-      { title, url, visible },
+      updateData,
       { new: true }
     )
-    return res.json(updatedLink)
+
+    console.log('Link atualizado:', updatedLink)
+    return res.json({ success: true, data: updatedLink })
   } catch (error) {
     console.error('Erro ao atualizar link:', error)
-    return res.status(400).json({ message: 'Erro ao atualizar link' })
+    return res.status(400).json({ success: false, message: 'Erro ao atualizar link' })
   }
 }
 
@@ -106,22 +115,23 @@ export const deleteLink = async (req: AuthRequest, res: Response) => {
 }
 
 export const reorderLinks = async (req: AuthRequest, res: Response) => {
-  const { links } = req.body
-  const userId = req.user.id
-
   try {
-    for (const { id, order } of links) {
+    const userId = req.user.id
+    const { links } = req.body
+
+    // Atualiza a ordem de cada link
+    for (let i = 0; i < links.length; i++) {
       await Link.findOneAndUpdate(
-        { _id: id, userId },
-        { order }
+        { _id: links[i], userId },
+        { order: i },
+        { new: true }
       )
     }
 
-    const updatedLinks = await Link.find({ userId }).sort({ order: 1 })
-    return res.json(updatedLinks)
+    res.status(200).json({ message: 'Links reordenados com sucesso' })
   } catch (error) {
     console.error('Erro ao reordenar links:', error)
-    return res.status(400).json({ message: 'Erro ao reordenar links' })
+    res.status(500).json({ error: 'Erro ao reordenar links' })
   }
 }
 
