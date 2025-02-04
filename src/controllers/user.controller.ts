@@ -170,7 +170,8 @@ export class UserController {
 
       const user = await User.findOne({ 
         username: username.toLowerCase() 
-      })
+      }).select('username profile bio avatar followers following isPublic')
+      
       console.log('Usuário encontrado:', user)
 
       if (!user) {
@@ -181,22 +182,39 @@ export class UserController {
         })
       }
 
+      // Verifica se o perfil é público
+      if (user.isPublic === false) {
+        return res.status(403).json({
+          success: false,
+          message: 'Este perfil é privado'
+        })
+      }
+
       // Buscar os links visíveis do usuário
       const links = await Link.find({ 
         userId: user._id,
         visible: true 
       }).sort({ order: 1 })
 
-      console.log('Links encontrados:', links) // Debug
+      console.log('Links encontrados:', links)
 
       return res.status(200).json({
         success: true,
         data: {
           username: user.username,
+          bio: user.bio || '',
+          avatar: user.avatar || null,
           profile: user.profile,
-          followers: user.followers,
-          following: user.following,
-          links: links
+          followers: user.followers?.length || 0,
+          following: user.following?.length || 0,
+          links: links.map(link => ({
+            id: link._id,
+            title: link.title,
+            url: link.url,
+            visible: link.visible,
+            order: link.order,
+            likes: link.likes || 0
+          }))
         }
       })
     } catch (error) {
