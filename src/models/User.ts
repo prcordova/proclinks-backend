@@ -18,6 +18,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  bio: {
+    type: String,
+    default: ''
+  },
+  avatar: {
+    type: String,
+    default: null
+  },
   profile: {
     backgroundColor: {
       type: String,
@@ -91,7 +99,7 @@ const userSchema = new mongoose.Schema({
   following: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }]
+  }],
 })
 
 userSchema.pre('save', async function(next) {
