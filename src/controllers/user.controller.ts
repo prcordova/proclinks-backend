@@ -35,19 +35,7 @@ export class UserController {
   public async updateProfile(req: AuthRequest, res: Response): Promise<Response> {
     try {
       const userId = req.user.id
-      const {
-        backgroundColor,
-        cardColor,
-        textColor,
-        cardTextColor,
-        displayMode,
-        cardStyle,
-        animation,
-        font,
-        spacing,
-        sortMode,
-        likesColor
-      } = req.body
+      const { profile, links } = req.body
 
       const user = await User.findById(userId)
       
@@ -58,21 +46,49 @@ export class UserController {
         })
       }
 
+      // Atualiza o perfil
       user.profile = {
-        backgroundColor: backgroundColor || user.profile?.backgroundColor || '#ffffff',
-        cardColor: cardColor || user.profile?.cardColor || '#f5f5f5',
-        textColor: textColor || user.profile?.textColor || '#000000',
-        cardTextColor: cardTextColor || user.profile?.cardTextColor || '#000000',
-        displayMode: displayMode || user.profile?.displayMode || 'list',
-        cardStyle: cardStyle || user.profile?.cardStyle || 'rounded',
-        animation: animation || user.profile?.animation || 'none',
-        font: font || user.profile?.font || 'default',
-        spacing: spacing || user.profile?.spacing || 16,
-        sortMode: sortMode || user.profile?.sortMode || 'custom',
-        likesColor: likesColor || user.profile?.likesColor || '#ff0000'
+        backgroundColor: profile.backgroundColor || user.profile?.backgroundColor || '#ffffff',
+        cardColor: profile.cardColor || user.profile?.cardColor || '#f5f5f5',
+        textColor: profile.textColor || user.profile?.textColor || '#000000',
+        cardTextColor: profile.cardTextColor || user.profile?.cardTextColor || '#000000',
+        displayMode: profile.displayMode || user.profile?.displayMode || 'list',
+        cardStyle: profile.cardStyle || user.profile?.cardStyle || 'rounded',
+        animation: profile.animation || user.profile?.animation || 'none',
+        font: profile.font || user.profile?.font || 'default',
+        spacing: profile.spacing || user.profile?.spacing || 16,
+        sortMode: profile.sortMode || user.profile?.sortMode || 'custom',
+        likesColor: profile.likesColor || user.profile?.likesColor || '#ff0000'
       }
 
+      // Salva as alterações do perfil
       await user.save()
+
+      // Atualiza os links se foram enviados
+      if (links && Array.isArray(links)) {
+        // Atualiza cada link
+        const linkUpdates = links.map(async (linkData) => {
+          const { _id, title, url, visible, order } = linkData
+          
+          return Link.findByIdAndUpdate(
+            _id,
+            { title, url, visible, order },
+            { new: true }
+          )
+        })
+
+        // Aguarda todas as atualizações dos links
+        const updatedLinks = await Promise.all(linkUpdates)
+
+        return res.status(200).json({
+          success: true,
+          message: 'Perfil e links atualizados com sucesso',
+          data: {
+            profile: user.profile,
+            links: updatedLinks
+          }
+        })
+      }
 
       return res.status(200).json({
         success: true,
