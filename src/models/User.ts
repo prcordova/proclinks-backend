@@ -1,6 +1,19 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 
+export enum UserPlanType {
+  FREE = 'FREE',
+  BRONZE = 'BRONZE',
+  SILVER = 'SILVER',
+  GOLD = 'GOLD'
+}
+
+export enum PlanStatus {
+  ACTIVE = 'ACTIVE',
+  CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED'
+}
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -100,6 +113,34 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+  plan: {
+    type: {
+      type: String,
+      enum: UserPlanType,
+      default: UserPlanType.FREE
+    },
+    status: {
+      type: String,
+      enum: PlanStatus,
+      default: PlanStatus.ACTIVE
+    },
+    startDate: {
+      type: Date,
+      default: null
+    },
+    expirationDate: {
+      type: Date,
+      default: null
+    },
+    stripeCustomerId: {
+      type: String,
+      default: null
+    },
+    stripeSubscriptionId: {
+      type: String,
+      default: null
+    }
+  }
 })
 
 userSchema.pre('save', async function(next) {
