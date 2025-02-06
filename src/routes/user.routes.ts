@@ -41,4 +41,6 @@ userRouter.get('/:username', (req: Request, res: Response) =>
   userController.getPublicProfile(req, res)
 )
 
+userRouter.get('/', userController.listUsers)
+
 export { userRouter as userRoutes } 

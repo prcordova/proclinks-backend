@@ -284,4 +284,77 @@ export class UserController {
       })
     }
   }
+
+  async listUsers(req: Request, res: Response) {
+    try {
+      const { page = 1, limit = 20, filter = 'popular', search } = req.query
+      const skip = (Number(page) - 1) * Number(limit)
+
+      // Usuários filtrados pela busca
+      let searchResults: Array<any> = []
+      if (search) {
+        searchResults = await User.find({
+          isPublic: true,
+          username: { $regex: search as string, $options: 'i' }
+        })
+        .select('username avatar bio followers following links plan lastLogin')
+        .limit(5)
+      }
+
+      // Usuários em destaque (relevância)
+      const featuredUsers = await User.aggregate([
+        { $match: { isPublic: true } },
+        {
+          $addFields: {
+            relevanceScore: {
+              $add: [
+                { 
+                  $switch: {
+                    branches: [
+                      { case: { $eq: ["$plan.type", "GOLD"] }, then: 100 },
+                      { case: { $eq: ["$plan.type", "SILVER"] }, then: 50 },
+                      { case: { $eq: ["$plan.type", "BRONZE"] }, then: 25 }
+                    ],
+                    default: 0
+                  }
+                },
+                { $multiply: [{ $size: "$followers" }, 0.5] },
+                { 
+                  $multiply: [
+                    { $sum: "$links.likes" },
+                    0.3
+                  ]
+                },
+                {
+                  $cond: {
+                    if: {
+                      $gte: [
+                        "$lastLogin",
+                        { $subtract: [new Date(), 7 * 24 * 60 * 60 * 1000] }
+                      ]
+                    },
+                    then: 30,
+                    else: 0
+                  }
+                }
+              ]
+            }
+          }
+        },
+        { $sort: { relevanceScore: -1 } },
+        { $skip: skip },
+        { $limit: Number(limit) }
+      ])
+
+      res.json({
+        searchResults,
+        featuredUsers,
+        page: Number(page),
+        hasMore: featuredUsers.length === Number(limit)
+      })
+    } catch (error) {
+      console.error('Erro ao listar usuários:', error)
+      res.status(500).json({ message: 'Erro ao listar usuários' })
+    }
+  }
 } 
