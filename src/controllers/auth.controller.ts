@@ -3,21 +3,49 @@ import { User } from '../models/User'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
-export async function register(req: Request, res: Response) {
+export const register = async (req: Request, res: Response) => {
   try {
-    const { username, email, password } = req.body
+    const { username, email, password, cpf, phone } = req.body
+    
+    console.log('Dados recebidos:', req.body)
 
-    if (!username || !email || !password) {
-      return res.status(400).json({ 
+    if (!username || !email || !password || !cpf || !phone) {
+      return res.status(400).json({
         success: false,
-        message: 'Todos os campos são obrigatórios' 
+        message: 'Todos os campos são obrigatórios'
       })
     }
 
-    if (await User.findOne({ $or: [{ email }, { username }] })) {
-      return res.status(400).json({ 
+    // Verifica cada campo individualmente para mensagens específicas
+    const existingUsername = await User.findOne({ username })
+    if (existingUsername) {
+      return res.status(400).json({
         success: false,
-        message: 'Usuário ou email já existe' 
+        message: 'Nome de usuário já está em uso'
+      })
+    }
+
+    const existingEmail = await User.findOne({ email })
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email já está cadastrado'
+      })
+    }
+
+    const existingCpf = await User.findOne({ cpf })
+    if (existingCpf) {
+      return res.status(400).json({
+        success: false,
+        message: 'CPF já está cadastrado'
+      })
+    }
+
+    const existingPhone = await User.findOne({ phone })
+    if (existingPhone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Telefone já está cadastrado'
       })
     }
 
@@ -25,6 +53,21 @@ export async function register(req: Request, res: Response) {
       username,
       email,
       password,
+      cpf,
+      phone,
+      isPublic: true,
+      profile: {
+        backgroundColor: '#ffffff',
+        cardColor: '#f5f5f5',
+        textColor: '#000000',
+        cardTextColor: '#000000',
+        displayMode: 'grid',
+        cardStyle: 'square',
+        animation: 'none',
+        font: 'default',
+        spacing: 12,
+        sortMode: 'custom'
+      }
     })
 
     const token = jwt.sign(
@@ -44,12 +87,26 @@ export async function register(req: Request, res: Response) {
         token,
       }
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro no registro:', error)
-    return res.status(500).json({ 
-      success: false,
-      message: 'Erro ao criar usuário',
-      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0]
+      const fieldMap: { [key: string]: string } = {
+        username: 'Nome de usuário',
+        email: 'Email',
+        cpf: 'CPF',
+        phone: 'Telefone'
+      }
+      return res.status(400).json({ 
+        success: false, 
+        message: `${fieldMap[field] || 'Campo'} já está em uso` 
+      })
+    }
+
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Erro interno do servidor' 
     })
   }
 }
