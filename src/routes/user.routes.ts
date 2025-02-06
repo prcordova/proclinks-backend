@@ -46,5 +46,8 @@ userRouter.get('/', userController.listUsers)
 userRouter.post('/:userId/follow', authMiddleware, userController.followUser)
 userRouter.delete('/:userId/follow', authMiddleware, userController.unfollowUser)
 userRouter.get('/:userId/follow-stats', userController.getFollowStats)
+userRouter.get('/:userId/followers', userController.getFollowersFromUser)
+
+
 
 export { userRouter as userRoutes } 

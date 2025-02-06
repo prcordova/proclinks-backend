@@ -469,4 +469,30 @@ export class UserController {
       })
     }
   }
+
+  async getFollowersFromUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params
+     
+      const user = await User.findById(userId)
+    
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuário não encontrado'
+        })
+      }
+
+      res.json({
+        success: true,
+        data: user.followers
+      })
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar seguidores'
+      })
+    }
+    
+  }
 } 
