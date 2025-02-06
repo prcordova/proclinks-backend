@@ -140,6 +140,57 @@ const userSchema = new mongoose.Schema({
       type: String,
       default: null
     }
+  },
+  cpf: {
+    type: String,
+    required: true,
+    unique: true,
+    validate: {
+      validator: function(cpf: string) {
+        // Remove caracteres não numéricos
+        const cleanCpf = cpf.replace(/\D/g, '')
+        
+        // Verifica se tem 11 dígitos
+        if (cleanCpf.length !== 11) return false
+
+        // Verifica se todos os dígitos são iguais
+        if (/^(\d)\1+$/.test(cleanCpf)) return false
+
+        // Validação dos dígitos verificadores
+        let sum = 0
+        let rest
+        
+        for (let i = 1; i <= 9; i++) 
+          sum = sum + parseInt(cleanCpf.substring(i-1, i)) * (11 - i)
+        
+        rest = (sum * 10) % 11
+        if ((rest === 10) || (rest === 11)) rest = 0
+        if (rest !== parseInt(cleanCpf.substring(9, 10))) return false
+
+        sum = 0
+        for (let i = 1; i <= 10; i++) 
+          sum = sum + parseInt(cleanCpf.substring(i-1, i)) * (12 - i)
+        
+        rest = (sum * 10) % 11
+        if ((rest === 10) || (rest === 11)) rest = 0
+        if (rest !== parseInt(cleanCpf.substring(10, 11))) return false
+
+        return true
+      },
+      message: 'CPF inválido'
+    }
+  },
+  phone: {
+    type: String,
+    required: true,
+    unique: true,
+    validate: {
+      validator: function(phone: string) {
+        const cleanPhone = phone.replace(/\D/g, '')
+        return /^[1-9]{2}[9]?[0-9]{8}$/.test(cleanPhone)
+      },
+      message: 'Telefone inválido'
+    }
   }
 })
 
