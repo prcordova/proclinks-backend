@@ -10,6 +10,13 @@ interface AuthRequest extends Request {
   }
 }
 
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string
+    username: string
+  }
+}
+
 export async function updateViewMode(req: AuthRequest, res: Response) {
   try {
     const userId = req.user.id
@@ -355,6 +362,111 @@ export class UserController {
     } catch (error) {
       console.error('Erro ao listar usuários:', error)
       res.status(500).json({ message: 'Erro ao listar usuários' })
+    }
+  }
+
+  async followUser(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { userId } = req.params
+      const followerId = req.user?.id
+
+      if (!followerId) {
+        return res.status(401).json({ message: 'Usuário não autenticado' })
+      }
+
+      // Validar se não está tentando seguir a si mesmo
+      if (userId === followerId) {
+        return res.status(400).json({ message: 'Você não pode seguir a si mesmo' })
+      }
+
+      // Verificar se já segue
+      const alreadyFollowing = await User.exists({
+        _id: userId,
+        followers: followerId
+      })
+
+      if (alreadyFollowing) {
+        return res.status(400).json({ message: 'Você já segue este usuário' })
+      }
+
+      // Adicionar follower
+      await User.findByIdAndUpdate(userId, {
+        $addToSet: { followers: followerId }
+      })
+
+      // Adicionar following
+      await User.findByIdAndUpdate(followerId, {
+        $addToSet: { following: userId }
+      })
+
+      res.status(200).json({ message: 'Usuário seguido com sucesso' })
+    } catch (error) {
+      console.error('Erro ao seguir usuário:', error)
+      res.status(500).json({ message: 'Erro ao seguir usuário' })
+    }
+  }
+
+  async unfollowUser(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { userId } = req.params
+      const followerId = req.user?.id
+
+      if (!followerId) {
+        return res.status(401).json({ message: 'Usuário não autenticado' })
+      }
+
+      // Validar se está seguindo
+      const isFollowing = await User.exists({
+        _id: userId,
+        followers: followerId
+      })
+
+      if (!isFollowing) {
+        return res.status(400).json({ message: 'Você não segue este usuário' })
+      }
+
+      // Remover follower
+      await User.findByIdAndUpdate(userId, {
+        $pull: { followers: followerId }
+      })
+
+      // Remover following
+      await User.findByIdAndUpdate(followerId, {
+        $pull: { following: userId }
+      })
+
+      res.status(200).json({ message: 'Deixou de seguir com sucesso' })
+    } catch (error) {
+      console.error('Erro ao deixar de seguir usuário:', error)
+      res.status(500).json({ message: 'Erro ao deixar de seguir usuário' })
+    }
+  }
+
+  async getFollowStats(req: Request, res: Response) {
+    try {
+      const { userId } = req.params
+      const user = await User.findById(userId)
+        .select('followersCount followingCount')
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuário não encontrado'
+        })
+      }
+
+      res.json({
+        success: true,
+        data: {
+          followers: user.followersCount,
+          following: user.followingCount
+        }
+      })
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar estatísticas'
+      })
     }
   }
 } 
