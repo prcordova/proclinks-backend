@@ -57,16 +57,18 @@ export const register = async (req: Request, res: Response) => {
       phone,
       isPublic: true,
       profile: {
-        backgroundColor: '#ffffff',
-        cardColor: '#f5f5f5',
-        textColor: '#000000',
-        cardTextColor: '#000000',
-        displayMode: 'grid',
-        cardStyle: 'square',
-        animation: 'none',
+        backgroundColor: '#0f172a',
+        cardColor: '#818cf8',
+        textColor: '#818cf8',
+        cardTextColor: '#ffffff',
+        displayMode: 'list',
+        cardStyle: 'rounded',
+        animation: 'fade',
         font: 'default',
         spacing: 12,
-        sortMode: 'custom'
+        sortMode: 'custom',
+        likesColor: '#ff0000'
+
       }
     })
 
