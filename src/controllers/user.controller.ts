@@ -472,10 +472,11 @@ export class UserController {
 
   async getFollowersFromUser(req: Request, res: Response) {
     try {
-      const { userId } = req.params
+      const { username } = req.params
+      console.log('Buscando seguidores para username:', username)
      
-      const user = await User.findById(userId)
-    
+      const user = await User.findOne({ username }).populate('followers')
+      
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -485,14 +486,16 @@ export class UserController {
 
       res.json({
         success: true,
-        data: user.followers
+        data: {
+          data: user.followers
+        }
       })
     } catch (error) {
+      console.error('Erro ao buscar seguidores:', error)
       res.status(500).json({
         success: false,
         message: 'Erro ao buscar seguidores'
       })
     }
-    
   }
 } 
