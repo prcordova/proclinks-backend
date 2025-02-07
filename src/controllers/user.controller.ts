@@ -498,4 +498,33 @@ export class UserController {
       })
     }
   }
+
+  async getFollowingFromUser(req: Request, res: Response) {
+    try {
+      const { username } = req.params
+      console.log('Buscando seguindo para username:', username)
+     
+      const user = await User.findOne({ username }).populate('following')
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Usuário não encontrado'
+        })
+      }
+
+      res.json({
+        success: true,
+        data: {
+          data: user.following
+        }
+      })
+    } catch (error) {
+      console.error('Erro ao buscar usuários seguidos:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao buscar usuários seguidos'
+      })
+    }
+  }
 } 
