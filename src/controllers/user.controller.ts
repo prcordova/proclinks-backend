@@ -1,8 +1,9 @@
 import { Request, Response } from 'express'
-import { User } from '../models/User'
+import { User, IUser } from '../models/User'
 import Link from '../models/Link'
 import path from 'path'
 import fs from 'fs'
+import { PlanType, PlanStatus, PLAN_FEATURES } from '../models/Plans'
 
 interface AuthRequest extends Request {
   user: {
@@ -118,9 +119,8 @@ export class UserController {
     try {
       const userId = req.user.id
       
-      // Busca o usuário com seus dados básicos
       const user = await User.findById(userId)
-        .select('-password') // Exclui o campo password
+        .select('-password') as IUser | null
         
       if (!user) {
         return res.status(404).json({
@@ -129,12 +129,10 @@ export class UserController {
         })
       }
 
-      // Busca os links do usuário
       const links = await Link.find({ 
         userId: user._id 
       }).sort({ order: 1 })
 
-      // Retorna os dados completos
       return res.status(200).json({
         success: true,
         data: {
@@ -148,7 +146,13 @@ export class UserController {
           following: user.following || [],
           links: links,
           viewMode: user.viewMode,
-          isPublic: user.isPublic
+          isPublic: user.isPublic,
+          plan: {
+            type: user.plan.type,
+            status: user.plan.status,
+            expirationDate: user.plan.expirationDate,
+            features: PLAN_FEATURES[user.plan.type as PlanType]
+          }
         }
       })
 

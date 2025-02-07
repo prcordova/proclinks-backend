@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
+import { PlanType, PlanStatus } from './Plans'
 
 export enum UserPlanType {
   FREE = 'FREE',
@@ -8,10 +9,13 @@ export enum UserPlanType {
   GOLD = 'GOLD'
 }
 
-export enum PlanStatus {
-  ACTIVE = 'ACTIVE',
-  CANCELLED = 'CANCELLED',
-  EXPIRED = 'EXPIRED'
+interface IPlan {
+  type: PlanType;
+  status: PlanStatus;
+  startDate: Date | null;
+  expirationDate: Date | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
 }
 
 const userSchema = new mongoose.Schema({
@@ -126,12 +130,12 @@ const userSchema = new mongoose.Schema({
   plan: {
     type: {
       type: String,
-      enum: UserPlanType,
-      default: UserPlanType.FREE
+      enum: Object.values(PlanType),
+      default: PlanType.FREE
     },
     status: {
       type: String,
-      enum: PlanStatus,
+      enum: Object.values(PlanStatus),
       default: PlanStatus.ACTIVE
     },
     startDate: {
@@ -211,4 +215,24 @@ userSchema.pre('save', async function(next) {
   next()
 })
 
-export const User = mongoose.model('User', userSchema) 
+// Definir interface para o documento do usuário
+export interface IUser extends mongoose.Document {
+  username: string;
+  email: string;
+  password: string;
+  bio?: string;
+  avatar?: string | null;
+  profile: any; // você pode definir uma interface específica para profile
+  isPublic: boolean;
+  createdAt: Date;
+  viewMode: string;
+  followers: string[];
+  following: string[];
+  followersCount: number;
+  followingCount: number;
+  plan: IPlan;
+  cpf: string;
+  phone: string;
+}
+
+export const User = mongoose.model<IUser>('User', userSchema) 

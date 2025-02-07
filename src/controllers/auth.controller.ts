@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { User } from '../models/User'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { PLAN_FEATURES } from '../models/Plans'
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -163,6 +164,11 @@ export async function login(req: Request, res: Response) {
           id: user._id,
           username: user.username,
           email: user.email,
+          plan: {
+            type: user.plan.type,
+            status: user.plan.status,
+            features: PLAN_FEATURES[user.plan.type]
+          }
         },
         token,
       }
