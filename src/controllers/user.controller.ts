@@ -181,7 +181,7 @@ export class UserController {
 
       const user = await User.findOne({ 
         username: username.toLowerCase() 
-      }).select('username profile bio avatar followers following isPublic')
+      }).select('-password')
       
       console.log('Usuário encontrado:', user)
 
@@ -212,20 +212,20 @@ export class UserController {
       return res.status(200).json({
         success: true,
         data: {
+          id: user._id,
           username: user.username,
+          email: user.email,
+          avatar: user.avatar,
           bio: user.bio || '',
-          avatar: user.avatar || null,
           profile: user.profile,
           followers: user.followers?.length || 0,
           following: user.following?.length || 0,
-          links: links.map(link => ({
-            id: link._id,
-            title: link.title,
-            url: link.url,
-            visible: link.visible,
-            order: link.order,
-            likes: link.likes || 0
-          }))
+          links: links,
+          plan: {
+            type: user.plan.type,
+            status: user.plan.status,
+            features: PLAN_FEATURES[user.plan.type as PlanType]
+          }
         }
       })
     } catch (error) {

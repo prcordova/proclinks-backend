@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import mongoose from 'mongoose'
 import Link from '../models/Link'
 import { User } from '../models/User'
+import { PlanType, PLAN_FEATURES } from '../models/Plans'
 
 interface AuthRequest extends Request {
   user: {
@@ -14,6 +15,37 @@ export const createLink = async (req: AuthRequest, res: Response) => {
   const userId = req.user.id
 
   try {
+    // Busca o usuário e seu plano atual
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário não encontrado'
+      })
+    }
+
+    // Obtém o limite de links do plano atual
+    const userPlanType = user.plan.type as PlanType
+    const planFeatures = PLAN_FEATURES[userPlanType]
+    const maxLinks = planFeatures.maxLinks
+
+    // Conta quantos links o usuário já tem
+    const currentLinksCount = await Link.countDocuments({ userId })
+
+    // Verifica se o usuário atingiu o limite
+    if (currentLinksCount >= maxLinks) {
+      return res.status(403).json({
+        success: false,
+        message: `Seu plano ${userPlanType} permite apenas ${maxLinks} links. Faça um upgrade para adicionar mais links.`,
+        currentPlan: {
+          type: userPlanType,
+          maxLinks,
+          currentLinks: currentLinksCount
+        }
+      })
+    }
+
+    // Se não atingiu o limite, continua com a criação do link
     const lastLink = await Link.findOne({ userId }).sort({ order: -1 })
     const nextOrder = (lastLink?.order || 0) + 1
 
@@ -25,10 +57,22 @@ export const createLink = async (req: AuthRequest, res: Response) => {
       order: nextOrder
     })
 
-    return res.json(link)
+    return res.status(201).json({
+      success: true,
+      data: link,
+      planInfo: {
+        type: userPlanType,
+        maxLinks,
+        currentLinks: currentLinksCount + 1
+      }
+    })
   } catch (error) {
     console.error('Erro ao criar link:', error)
-    return res.status(400).json({ message: 'Erro ao criar link' })
+    return res.status(400).json({ 
+      success: false,
+      message: 'Erro ao criar link',
+      error: error instanceof Error ? error.message : 'Erro desconhecido'
+    })
   }
 }
 
