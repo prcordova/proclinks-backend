@@ -151,8 +151,8 @@ export async function login(req: Request, res: Response) {
 
     console.log('Gerando token para:', username)
     const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET || 'default_secret',
+      { id: user._id.toString() },
+      process.env.JWT_SECRET!,
       { expiresIn: '7d' }
     )
 
@@ -161,14 +161,12 @@ export async function login(req: Request, res: Response) {
       success: true,
       data: {
         user: {
-          id: user._id,
+          id: user._id.toString(),
           username: user.username,
           email: user.email,
-          plan: {
-            type: user.plan.type,
-            status: user.plan.status,
-            features: PLAN_FEATURES[user.plan.type]
-          }
+          avatar: user.avatar,
+          following: user.following,
+          plan: user.plan
         },
         token,
       }

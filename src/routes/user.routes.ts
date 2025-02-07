@@ -49,4 +49,8 @@ userRouter.get('/:userId/follow-stats', userController.getFollowStats)
 userRouter.get('/:username/followers', userController.getFollowersFromUser)
 userRouter.get('/:username/following', userController.getFollowingFromUser)
 
+userRouter.get('/header-info', authMiddleware, (req: Request, res: Response) => 
+  userController.getHeaderInfo(req as AuthRequest, res)
+)
+
 export { userRouter as userRoutes } 
