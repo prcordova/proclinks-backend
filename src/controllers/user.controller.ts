@@ -44,39 +44,79 @@ export async function updateViewMode(req: AuthRequest, res: Response) {
 export class UserController {
   public async updateProfile(req: AuthRequest, res: Response): Promise<Response> {
     try {
-      const userId = req.user.id;
-      const { profile, bio } = req.body;
-
-      const updatedUser = await User.findByIdAndUpdate(
-        userId,
-        { 
-          profile,
-          bio
-        },
-        { new: true }
-      );
-
-      if (!updatedUser) {
-        return res.status(404).json({
+      const userId = req.user.id
+      const { profile, bio, links } = req.body
+  
+      const user = await User.findById(userId)
+      
+      if (!user) {
+        return res.status(404).json({ 
           success: false,
-          message: 'Usuário não encontrado'
-        });
+          message: 'Usuário não encontrado' 
+        })
       }
-
+  
+      // Atualiza o perfil
+      user.profile = {
+        backgroundColor: profile.backgroundColor || user.profile?.backgroundColor || '#ffffff',
+        cardColor: profile.cardColor || user.profile?.cardColor || '#f5f5f5',
+        textColor: profile.textColor || user.profile?.textColor || '#000000',
+        cardTextColor: profile.cardTextColor || user.profile?.cardTextColor || '#000000',
+        displayMode: profile.displayMode || user.profile?.displayMode || 'list',
+        cardStyle: profile.cardStyle || user.profile?.cardStyle || 'rounded',
+        animation: profile.animation || user.profile?.animation || 'none',
+        font: profile.font || user.profile?.font || 'default',
+        spacing: profile.spacing || user.profile?.spacing || 16,
+        sortMode: profile.sortMode || user.profile?.sortMode || 'custom',
+        likesColor: profile.likesColor || user.profile?.likesColor || '#ff0000'
+      }
+  
+      if (bio !== undefined) {
+        user.bio = bio
+      }
+  
+      // Salva as alterações do perfil
+      await user.save()
+  
+      // Atualiza os links se foram enviados
+      if (links && Array.isArray(links)) {
+        const linkUpdates = links.map(async (linkData) => {
+          const { _id, title, url, visible, order } = linkData
+          return Link.findByIdAndUpdate(
+            _id,
+            { title, url, visible, order },
+            { new: true }
+          )
+        })
+  
+        const updatedLinks = await Promise.all(linkUpdates)
+  
+        return res.status(200).json({
+          success: true,
+          message: 'Perfil e links atualizados com sucesso',
+          data: {
+            profile: user.profile,
+            bio: user.bio,
+            links: updatedLinks
+          }
+        })
+      }
+  
       return res.status(200).json({
         success: true,
         message: 'Perfil atualizado com sucesso',
         data: {
-          profile: updatedUser.profile,
-          bio: updatedUser.bio
+          profile: user.profile,
+          bio: user.bio
         }
-      });
+      })
     } catch (error) {
-      console.error('Erro ao atualizar perfil:', error);
-      return res.status(500).json({
+      console.error('Erro ao atualizar perfil:', error)
+      return res.status(500).json({ 
         success: false,
-        message: 'Erro ao atualizar perfil'
-      });
+        message: 'Erro ao atualizar perfil',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
+      })
     }
   }
 
