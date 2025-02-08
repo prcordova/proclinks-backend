@@ -1,10 +1,5 @@
 import mongoose from 'mongoose'
-import dotenv from 'dotenv'
-
-// Carrega as variáveis de ambiente
-dotenv.config()
-
-const dbUri = process.env.MONGODB_URI as string
+import { env } from './env'
 
 class Database {
   constructor() {
@@ -13,7 +8,7 @@ class Database {
 
   private async connect(): Promise<void> {
     try {
-      await mongoose.connect(dbUri)
+      await mongoose.connect(env.MONGODB_URI)
       console.log('📦 Conectado ao MongoDB')
 
       mongoose.connection.on('disconnected', () => {
@@ -39,12 +34,6 @@ class Database {
       process.exit(1)
     }
   }
-}
-
-// Verifica se a URI existe antes de instanciar
-if (!dbUri) {
-  console.error('❌ A variável de ambiente MONGODB_URI não está definida')
-  process.exit(1)
 }
 
 export default new Database() 
