@@ -6,8 +6,13 @@ import { userRoutes } from './src/routes/user.routes'
 import { authRoutes } from './src/routes/auth.routes'
 import { linkRoutes } from './src/routes/link.routes'
 import fs from 'fs'
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 const app = express()
+
+
 
 app.use(cors())
 app.use(express.json())
