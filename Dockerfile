@@ -4,17 +4,21 @@ FROM node:20-alpine
 # Criar e definir o diretório de trabalho
 WORKDIR /app
 
-# Copiar package.json e package-lock.json
+# Copiar arquivos de configuração
 COPY package*.json ./
+COPY tsconfig.json ./
 
 # Instalar dependências
 RUN npm install
 
-# Copiar o resto dos arquivos do projeto
+# Copiar código fonte
 COPY . .
 
-# Compilar o TypeScript
+# Compilar TypeScript
 RUN npm run build
+
+# Limpar dependências de desenvolvimento
+RUN npm prune --production
 
 # Definir variáveis de ambiente
 ENV NODE_ENV=production
