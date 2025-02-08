@@ -1,23 +1,23 @@
-# Use uma imagem oficial do Node.js (LTS) como base
-FROM node:20
+# Usar uma imagem base do Node.js 20
+FROM node:20-alpine
 
+# Criar e definir o diretório de trabalho
+WORKDIR /src/app
 
-# Defina o diretório de trabalho no container
-WORKDIR /usr/src/app
-
-# Copie o package.json e package-lock.json para o diretório de trabalho do container
+# Copiar package.json e package-lock.json
 COPY package*.json ./
 
-# Instale as dependências do projeto
+# Instalar dependências
 RUN npm install
 
-# Copie o restante dos arquivos do projeto para o diretório de trabalho do container
+# Copiar o resto dos arquivos do projeto
 COPY . .
 
-# Exponha a porta que a aplicação usará
-EXPOSE 8080 
-# Defina uma variável de ambiente
-ENV NODE_ENV=production
+# Compilar o TypeScript
+RUN npm run build
 
-# Defina o comando para rodar a aplicação
-CMD [ "node", "server.js" ]
+# Expor a porta que sua aplicação usa
+EXPOSE 8080
+
+# Comando para iniciar a aplicação
+CMD ["npm", "start"]

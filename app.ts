@@ -1,8 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
-import dotenv from 'dotenv'
-import './src/config/database'  // Importa a configuração do banco
+ import './src/config/database'  // Importa a configuração do banco
 import { userRoutes } from './src/routes/user.routes'
 import { authRoutes } from './src/routes/auth.routes'
 import { linkRoutes } from './src/routes/link.routes'
