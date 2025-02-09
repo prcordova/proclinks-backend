@@ -1,7 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
- import './src/config/database'  // Importa a configuração do banco
+import './src/config/database'  // Importa a configuração do banco
 import { userRoutes } from './src/routes/user.routes'
 import { authRoutes } from './src/routes/auth.routes'
 import { linkRoutes } from './src/routes/link.routes'
@@ -12,9 +12,18 @@ dotenv.config()
 
 const app = express()
 
+// Configuração específica do CORS
+app.use(cors({
+  origin: [
+    'https://proclinks-frontend-a9gfxs6za-prcordovas-projects.vercel.app',
+    'https://proclinks.vercel.app',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
 
-
-app.use(cors())
 app.use(express.json())
 
 // Configurar o caminho absoluto para a pasta uploads usando process.cwd()
