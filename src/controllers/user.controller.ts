@@ -145,8 +145,7 @@ export class UserController {
         data: {
           id: user._id,
           username: user.username,
-          email: user.email,
-          avatar: user.avatar || null,
+           avatar: user.avatar || null,
           bio: user.bio || "",
           profile: user.profile,
           followers: user.followers || [],
@@ -308,10 +307,19 @@ export class UserController {
           isPublic: true,
           username: { $regex: search as string, $options: "i" },
         })
-          .select(
-            "username avatar bio followers following links plan lastLogin"
-          )
-          .limit(5);
+          .select("username avatar bio followers following plan.type")
+          .limit(5)
+          .lean()
+          .then(users => users.map(user => ({
+            username: user.username,
+            avatar: user.avatar,
+            bio: user.bio,
+            followers: user.followers?.length || 0,
+            following: user.following?.length || 0,
+            plan: {
+              type: user.plan.type
+            }
+          })));
       }
 
       // Usuários em destaque (relevância)
@@ -332,9 +340,7 @@ export class UserController {
                   },
                 },
                 { $multiply: [{ $size: "$followers" }, 0.5] },
-                {
-                  $multiply: [{ $sum: "$links.likes" }, 0.3],
-                },
+                { $multiply: [{ $sum: "$links.likes" }, 0.3] },
                 {
                   $cond: {
                     if: {
@@ -354,6 +360,18 @@ export class UserController {
         { $sort: { relevanceScore: -1 } },
         { $skip: skip },
         { $limit: Number(limit) },
+        {
+          $project: {
+            _id: 1,
+            username: 1,
+            avatar: 1,
+            bio: 1,
+            followers: { $size: "$followers" },
+            following: { $size: "$following" },
+            "plan.type": 1,
+            relevanceScore: 1
+          }
+        }
       ]);
 
       res.json({
@@ -510,7 +528,9 @@ export class UserController {
       const { username } = req.params;
       console.log("Buscando seguindo para username:", username);
 
-      const user = await User.findOne({ username }).populate("following");
+      const user = await User.findOne({ username })
+        .populate('following', 'username avatar bio plan.type followers following')
+        .select('following');
 
       if (!user) {
         return res.status(404).json({
@@ -556,7 +576,7 @@ export class UserController {
         data: {
           id: user._id.toString(),
           username: user.username,
-          email: user.email,
+        
           avatar: user.avatar,
           following: user.following,
           plan: {
