@@ -222,12 +222,13 @@ export class UserController {
         data: {
           id: user._id,
           username: user.username,
-          
           avatar: user.avatar,
           bio: user.bio || "",
           profile: user.profile,
           followers: user.followers?.length || 0,
           following: user.following?.length || 0,
+          followersIds: user.followers || [],
+          followingIds: user.following || [],
           links: links,
           plan: {
             type: user.plan.type,
