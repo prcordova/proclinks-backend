@@ -120,8 +120,7 @@ export async function login(req: Request, res: Response) {
     const { username, password } = req.body
 
     if (!username || !password) {
-      console.log('Campos faltando:', { username: !!username, password: !!password })
-      return res.status(400).json({ 
+       return res.status(400).json({ 
         success: false,
         message: 'Username e senha são obrigatórios' 
       })

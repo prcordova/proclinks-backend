@@ -12,6 +12,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.744.0",
+    "@aws-sdk/s3-request-presigner": "^3.744.0",
     "@prisma/client": "^6.3.0",
     "@types/multer": "^1.4.12",
     "@types/stripe": "^8.0.416",
@@ -23,7 +25,9 @@
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.3",
     "multer": "^1.4.5-lts.1",
-    "stripe": "^17.6.0"
+    "sharp": "^0.33.5",
+    "stripe": "^17.6.0",
+    "uuid": "^11.0.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",

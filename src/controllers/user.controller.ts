@@ -4,6 +4,7 @@ import Link from "../models/Link";
 import path from "path";
 import fs from "fs";
 import { PlanType, PlanStatus, PLAN_FEATURES } from "../models/Plans";
+import { UploadService } from '../services/upload.service';
 
 interface AuthRequest extends Request {
   user: {
@@ -250,7 +251,7 @@ export class UserController {
       if (!req.file) {
         return res.status(400).json({
           success: false,
-          message: "Nenhuma imagem foi enviada",
+          message: "Nenhuma imagem foi enviada"
         });
       }
 
@@ -260,70 +261,37 @@ export class UserController {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: "Usuário não encontrado",
+          message: "Usuário não encontrado"
         });
       }
-
-      // Modificação 1: Usar process.env.UPLOAD_PATH ou um caminho absoluto configurável
-      const baseUploadPath = process.env.UPLOAD_PATH || path.join(process.cwd(), 'public/uploads');
-      const userUploadsPath = path.join(baseUploadPath, 'users', userId, 'avatar');
-
-      // Modificação 2: Adicionar logs para debug
-      console.log('Base upload path:', baseUploadPath);
-      console.log('User uploads path:', userUploadsPath);
-
-      // Modificação 3: Verificar e criar diretório com permissões específicas
-      try {
-        fs.mkdirSync(userUploadsPath, { 
-          recursive: true, 
-          mode: 0o755 // Adiciona permissões de leitura/escrita
-        });
-      } catch (mkdirError) {
-        console.error('Erro ao criar diretório:', mkdirError);
-        throw mkdirError;
-      }
-
-      // Gera nome único para o arquivo
-      const fileExtension = path.extname(req.file.originalname);
-      const fileName = `${Date.now()}${fileExtension}`;
-      const filePath = path.join(userUploadsPath, fileName);
-
-      // Modificação 4: Adicionar log do caminho completo do arquivo
-      console.log('File path:', filePath);
 
       // Remove avatar antigo se existir
       if (user.avatar) {
-        try {
-          const oldAvatarPath = path.join(baseUploadPath, user.avatar.replace(/^\/uploads/, ''));
-          console.log('Old avatar path:', oldAvatarPath);
-          if (fs.existsSync(oldAvatarPath)) {
-            fs.unlinkSync(oldAvatarPath);
-          }
-        } catch (removeError) {
-          console.error('Erro ao remover avatar antigo:', removeError);
-          // Não interrompe o processo se falhar ao remover o avatar antigo
-        }
+        await UploadService.deleteFile(user.avatar);
       }
 
-      // Modificação 5: Usar promises para escrita do arquivo
-      await fs.promises.writeFile(filePath, req.file.buffer);
+      // Faz upload do novo avatar
+      const avatarUrl = await UploadService.uploadAvatar(
+        req.file.buffer,
+        req.file.mimetype,
+        userId
+      );
 
-      // Modificação 6: Usar caminho relativo para URL
-      const avatarUrl = `/uploads/users/${userId}/avatar/${fileName}`;
+      // Atualiza o usuário com a nova URL
       user.avatar = avatarUrl;
       await user.save();
 
       return res.status(200).json({
         success: true,
         message: "Avatar atualizado com sucesso",
-        avatarUrl,
+        avatarUrl
       });
     } catch (error) {
       console.error("Erro ao atualizar avatar:", error);
       return res.status(500).json({
         success: false,
         message: "Erro ao atualizar avatar",
-        error: error instanceof Error ? error.message : "Erro desconhecido",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
       });
     }
   }
