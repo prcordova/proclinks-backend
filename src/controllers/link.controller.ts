@@ -68,7 +68,8 @@ export const createLink = async (req: AuthRequest, res: Response) => {
     })
   } catch (error) {
     console.error('Erro ao criar link:', error)
-    return res.status(400).json({ 
+
+     return res.status(400).json({ 
       success: false,
       message: 'Erro ao criar link',
       error: error instanceof Error ? error.message : 'Erro desconhecido'
@@ -91,8 +92,7 @@ export const listLinks = async (req: AuthRequest, res: Response) => {
       order: link.order
     }))
 
-    console.log('Links formatados:', formattedLinks)
-    return res.json(formattedLinks)
+     return res.json(formattedLinks)
   } catch (error) {
     console.error('Erro ao listar links:', error)
     return res.status(400).json({ message: 'Erro ao listar links' })
@@ -123,8 +123,7 @@ export const updateLink = async (req: AuthRequest, res: Response) => {
       { new: true }
     )
 
-    console.log('Link atualizado:', updatedLink)
-    return res.json({ success: true, data: updatedLink })
+     return res.json({ success: true, data: updatedLink })
   } catch (error) {
     console.error('Erro ao atualizar link:', error)
     return res.status(400).json({ success: false, message: 'Erro ao atualizar link' })
@@ -136,21 +135,18 @@ export const deleteLink = async (req: AuthRequest, res: Response) => {
   const userId = req.user.id
 
   try {
-    console.log('Tentando deletar link:', { id, userId })
-    
+     
     const link = await Link.findOne({ 
       _id: id,
       userId 
     })
 
     if (!link) {
-      console.log('Link não encontrado:', { id, userId })
-      return res.status(404).json({ message: 'Link não encontrado' })
+       return res.status(404).json({ message: 'Link não encontrado' })
     }
 
     await Link.findByIdAndDelete(id)
-    console.log('Link deletado com sucesso:', id)
-    
+     
     return res.status(204).send()
   } catch (error) {
     console.error('Erro ao deletar link:', error)

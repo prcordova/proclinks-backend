@@ -189,11 +189,9 @@ export class UserController {
   ): Promise<Response> {
     try {
       const { username } = req.params;
-      console.log("Buscando perfil para username:", username);
-
+ 
       if (!username) {
-        console.log("Username não fornecido");
-        return res.status(400).json({
+         return res.status(400).json({
           success: false,
           message: "Username não fornecido",
         });
@@ -203,11 +201,9 @@ export class UserController {
         username: username.toLowerCase(),
       }).select("-password");
 
-      console.log("Usuário encontrado:", user);
-
+ 
       if (!user) {
-        console.log("Usuário não encontrado para username:", username);
-        return res.status(404).json({
+         return res.status(404).json({
           success: false,
           message: "Usuário não encontrado",
         });
@@ -227,8 +223,7 @@ export class UserController {
         visible: true,
       }).sort({ order: 1 });
 
-      console.log("Links encontrados:", links);
-
+ 
       return res.status(200).json({
         success: true,
         data: {
@@ -510,8 +505,7 @@ export class UserController {
   async getFollowersFromUser(req: Request, res: Response) {
     try {
       const { username } = req.params;
-      console.log("Buscando seguidores para username:", username);
-
+ 
       const user = await User.findOne({ username })
         .populate<{ followers: PopulatedUser[] }>('followers', 'username avatar bio plan.type followers following')
         .select('followers');
@@ -543,7 +537,8 @@ export class UserController {
       });
     } catch (error) {
       console.error("Erro ao buscar seguidores:", error);
-      res.status(500).json({
+
+       res.status(500).json({
         success: false,
         message: "Erro ao buscar seguidores",
       });
@@ -553,8 +548,7 @@ export class UserController {
   async getFollowingFromUser(req: Request, res: Response) {
     try {
       const { username } = req.params;
-      console.log("Buscando seguindo para username:", username);
-
+ 
       const user = await User.findOne({ username })
         .populate<{ following: PopulatedUser[] }>('following', 'username avatar bio plan.type followers following')
         .select('following');
@@ -595,16 +589,14 @@ export class UserController {
 
   public async getHeaderInfo(req: AuthRequest, res: Response): Promise<Response> {
     try {
-      console.log('User from token:', req.user) // Debug
-      const userId = req.user.id // Vem do token
+       const userId = req.user.id // Vem do token
 
       const user = await User.findById(userId)
         .select('username email avatar plan following')
         .lean()
 
       if (!user) {
-        console.log('User not found for ID:', userId) // Debug
-        return res.status(404).json({
+         return res.status(404).json({
           success: false,
           message: 'Usuário não encontrado'
         })
