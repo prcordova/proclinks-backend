@@ -19,6 +19,18 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
+interface PopulatedUser {
+  _id: string;
+  username: string;
+  avatar?: string;
+  bio?: string;
+  followers: string[];
+  following: string[];
+  plan?: {
+    type: 'FREE' | 'BRONZE' | 'SILVER' | 'GOLD';
+  };
+}
+
 export async function updateViewMode(req: AuthRequest, res: Response) {
   try {
     const userId = req.user.id;
@@ -500,7 +512,9 @@ export class UserController {
       const { username } = req.params;
       console.log("Buscando seguidores para username:", username);
 
-      const user = await User.findOne({ username }).populate("followers");
+      const user = await User.findOne({ username })
+        .populate<{ followers: PopulatedUser[] }>('followers', 'username avatar bio plan.type followers following')
+        .select('followers');
 
       if (!user) {
         return res.status(404).json({
@@ -509,10 +523,22 @@ export class UserController {
         });
       }
 
+      const formattedFollowers = user.followers.map((follower: PopulatedUser) => ({
+        id: follower._id,
+        username: follower.username,
+        avatar: follower.avatar,
+        bio: follower.bio,
+        followers: follower.followers?.length || 0,
+        following: follower.following?.length || 0,
+        plan: {
+          type: follower.plan?.type
+        }
+      }));
+
       res.json({
         success: true,
         data: {
-          data: user.followers,
+          data: formattedFollowers,
         },
       });
     } catch (error) {
@@ -530,7 +556,7 @@ export class UserController {
       console.log("Buscando seguindo para username:", username);
 
       const user = await User.findOne({ username })
-        .populate('following', 'username avatar bio plan.type followers following')
+        .populate<{ following: PopulatedUser[] }>('following', 'username avatar bio plan.type followers following')
         .select('following');
 
       if (!user) {
@@ -540,10 +566,22 @@ export class UserController {
         });
       }
 
+      const formattedFollowing = user.following.map((following: PopulatedUser) => ({
+        id: following._id,
+        username: following.username,
+        avatar: following.avatar,
+        bio: following.bio,
+        followers: following.followers?.length || 0,
+        following: following.following?.length || 0,
+        plan: {
+          type: following.plan?.type
+        }
+      }));
+
       res.json({
         success: true,
         data: {
-          data: user.following,
+          data: formattedFollowing,
         },
       });
     } catch (error) {
