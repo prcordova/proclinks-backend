@@ -6,11 +6,27 @@ import { PLAN_FEATURES } from '../models/Plans'
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { username, email, password, cpf, phone } = req.body
-    
+    const { 
+      username, 
+      email, 
+      password, 
+   
+      phone, 
+      termsAccepted,
+      birthDate,
+      fullName 
+    } = req.body
+
+    if (!termsAccepted) {
+      return res.status(400).json({
+        success: false,
+        message: 'É necessário aceitar os termos de uso'
+      })
+    }
+
     console.log('Dados recebidos:', req.body)
 
-    if (!username || !email || !password || !cpf || !phone) {
+    if (!username || !email || !password  || !phone) {
       return res.status(400).json({
         success: false,
         message: 'Todos os campos são obrigatórios'
@@ -34,13 +50,7 @@ export const register = async (req: Request, res: Response) => {
       })
     }
 
-    const existingCpf = await User.findOne({ cpf })
-    if (existingCpf) {
-      return res.status(400).json({
-        success: false,
-        message: 'CPF já está cadastrado'
-      })
-    }
+    
 
     const existingPhone = await User.findOne({ phone })
     if (existingPhone) {
@@ -54,9 +64,23 @@ export const register = async (req: Request, res: Response) => {
       username,
       email,
       password,
-      cpf,
+    
       phone,
+      fullName,
+      birthDate,
       isPublic: true,
+      termsAndPrivacy: {
+        terms: {
+          accepted: true,
+          acceptedAt: new Date(),
+          version: '1.0' // Você pode gerenciar as versões dos termos
+        },
+        privacyHistory: [{
+          acceptedAt: new Date(),
+          version: '1.0',
+          ip: req.ip // Captura o IP do usuário
+        }]
+      },
       profile: {
         backgroundColor: '#0f172a',
         cardColor: '#818cf8',
@@ -69,7 +93,6 @@ export const register = async (req: Request, res: Response) => {
         spacing: 12,
         sortMode: 'custom',
         likesColor: '#ff0000'
-
       }
     })
 
@@ -98,8 +121,7 @@ export const register = async (req: Request, res: Response) => {
       const fieldMap: { [key: string]: string } = {
         username: 'Nome de usuário',
         email: 'Email',
-        cpf: 'CPF',
-        phone: 'Telefone'
+         phone: 'Telefone'
       }
       return res.status(400).json({ 
         success: false, 

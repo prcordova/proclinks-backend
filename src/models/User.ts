@@ -18,6 +18,12 @@ interface IPlan {
   stripeSubscriptionId: string | null;
 }
 
+interface IPrivacySettings {
+  acceptedAt: Date;
+  version: string;
+  ip?: string;
+}
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -155,45 +161,7 @@ const userSchema = new mongoose.Schema({
       default: null
     }
   },
-  cpf: {
-    type: String,
-    required: true,
-    unique: true,
-    validate: {
-      validator: function(cpf: string) {
-        // Remove caracteres não numéricos
-        const cleanCpf = cpf.replace(/\D/g, '')
-        
-        // Verifica se tem 11 dígitos
-        if (cleanCpf.length !== 11) return false
-
-        // Verifica se todos os dígitos são iguais
-        if (/^(\d)\1+$/.test(cleanCpf)) return false
-
-        // Validação dos dígitos verificadores
-        let sum = 0
-        let rest
-        
-        for (let i = 1; i <= 9; i++) 
-          sum = sum + parseInt(cleanCpf.substring(i-1, i)) * (11 - i)
-        
-        rest = (sum * 10) % 11
-        if ((rest === 10) || (rest === 11)) rest = 0
-        if (rest !== parseInt(cleanCpf.substring(9, 10))) return false
-
-        sum = 0
-        for (let i = 1; i <= 10; i++) 
-          sum = sum + parseInt(cleanCpf.substring(i-1, i)) * (12 - i)
-        
-        rest = (sum * 10) % 11
-        if ((rest === 10) || (rest === 11)) rest = 0
-        if (rest !== parseInt(cleanCpf.substring(10, 11))) return false
-
-        return true
-      },
-      message: 'CPF inválido'
-    }
-  },
+ 
   phone: {
     type: String,
     required: true,
@@ -205,6 +173,34 @@ const userSchema = new mongoose.Schema({
       },
       message: 'Telefone inválido'
     }
+  },
+  termsAndPrivacy: {
+    terms: {
+      accepted: {
+        type: Boolean,
+        required: true,
+        default: false
+      },
+      acceptedAt: {
+        type: Date,
+        default: null
+      },
+      version: {
+        type: String,
+        default: '1.0'
+      }
+    },
+    privacyHistory: [{
+      acceptedAt: {
+        type: Date,
+        required: true
+      },
+      version: {
+        type: String,
+        required: true
+      },
+      ip: String
+    }]
   }
 })
 
@@ -231,8 +227,16 @@ export interface IUser extends mongoose.Document {
   followersCount: number;
   followingCount: number;
   plan: IPlan;
-  cpf: string;
+ 
   phone: string;
+  termsAndPrivacy: {
+    terms: {
+      accepted: boolean;
+      acceptedAt: Date | null;
+      version: string;
+    };
+    privacyHistory: IPrivacySettings[];
+  };
 }
 
 export const User = mongoose.model<IUser>('User', userSchema) 
