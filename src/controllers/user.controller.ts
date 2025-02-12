@@ -308,31 +308,25 @@ export class UserController {
       const { page = 1, limit = 20, filter = "popular", search } = req.query;
       const skip = (Number(page) - 1) * Number(limit);
 
-      // Usuários filtrados pela busca
-      let searchResults: Array<any> = [];
-      if (search) {
-        searchResults = await User.find({
-          isPublic: true,
-          username: { $regex: search as string, $options: "i" },
+      // Condição base de match
+      const matchCondition: any = { 
+        isPublic: true,
+        ...(search && {
+          $or: [
+            { username: { $regex: `^${search}`, $options: 'i' } },
+            { name: { $regex: `^${search}`, $options: 'i' } },
+            { bio: { $regex: search, $options: 'i' } }
+          ]
         })
-          .select("username avatar bio followers following plan.type")
-          .limit(5)
-          .lean()
-          .then(users => users.map(user => ({
-            username: user.username,
-            avatar: user.avatar,
-            bio: user.bio,
-            followers: user.followers?.length || 0,
-            following: user.following?.length || 0,
-            plan: {
-              type: user.plan.type
-            }
-          })));
-      }
+      };
 
-      // Usuários em destaque (relevância)
+      // Determina a ordenação baseada no filtro
+      const sortCondition: Record<string, 1 | -1> = filter === 'recent' 
+        ? { createdAt: -1 } 
+        : { relevanceScore: -1 };
+
       const featuredUsers = await User.aggregate([
-        { $match: { isPublic: true } },
+        { $match: matchCondition },
         {
           $addFields: {
             relevanceScore: {
@@ -365,7 +359,7 @@ export class UserController {
             },
           },
         },
-        { $sort: { relevanceScore: -1 } },
+        { $sort: sortCondition },
         { $skip: skip },
         { $limit: Number(limit) },
         {
@@ -377,14 +371,15 @@ export class UserController {
             followers: { $size: "$followers" },
             following: { $size: "$following" },
             "plan.type": 1,
-            relevanceScore: 1
+            relevanceScore: 1,
+            createdAt: 1
           }
         }
       ]);
 
       res.json({
-        searchResults,
-        featuredUsers,
+        searchResults: search ? featuredUsers : [], // Retorna resultados da busca se houver search
+        featuredUsers: search ? [] : featuredUsers, // Retorna featured apenas se não houver search
         page: Number(page),
         hasMore: featuredUsers.length === Number(limit),
       });
