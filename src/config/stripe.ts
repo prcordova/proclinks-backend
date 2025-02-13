@@ -4,21 +4,24 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY não está definida');
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-01-27.acacia'
 });
 
 export const PLANOS = {
   BRONZE: {
-    id: process.env.STRIPE_BRONZE_PRICE_ID,
-    preco: 990 // em centavos
+    id: 'price_1QrsXUIgj86kFVX92m3vDmVu',
+    name: 'Bronze',
+    price: 29.90
   },
-  PRATA: {
-    id: process.env.STRIPE_PRATA_PRICE_ID,
-    preco: 1990
+  SILVER: {
+    id: 'price_1QrsY1Igj86kFVX9l0VRRQ83',
+    name: 'Silver',
+    price: 49.90
   },
   GOLD: {
-    id: process.env.STRIPE_GOLD_PRICE_ID,
-    preco: 2990
+    id: 'price_1QrsYjIgj86kFVX9qT0jIuKK',
+    name: 'Gold',
+    price: 99.90
   }
 }; 

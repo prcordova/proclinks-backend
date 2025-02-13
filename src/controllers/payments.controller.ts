@@ -6,7 +6,20 @@ import { User } from '../models/User';
 export class PaymentsController {
   createCheckoutSession: RequestHandler = async (req: Request, res: Response) => {
     try {
+      if (!process.env.FRONTEND_URL) {
+        throw new Error('FRONTEND_URL não está configurada');
+      }
+
       const { plano } = req.body;
+      console.log('Plano recebido:', plano);
+      console.log('Planos disponíveis:', PLANOS);
+
+      // Verifica se o plano é válido
+      const planConfig = PLANOS[plano as keyof typeof PLANOS];
+      if (!planConfig) {
+        return res.status(400).json({ error: `Plano inválido: ${plano}` });
+      }
+
       const userId = (req as any).user.id;
       const user = await User.findById(userId);
 
@@ -29,13 +42,13 @@ export class PaymentsController {
         customer: stripeCustomerId,
         line_items: [
           {
-            price: PLANOS[plano as keyof typeof PLANOS].id,
+            price: planConfig.id,
             quantity: 1,
           },
         ],
         mode: 'subscription',
-        success_url: '/planos/sucesso?session_id={CHECKOUT_SESSION_ID}',
-        cancel_url: '/planos',
+        success_url: `${process.env.FRONTEND_URL}/planos/sucesso?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.FRONTEND_URL}/planos`,
         metadata: {
           userId: user._id.toString(),
           plano: plano
@@ -45,6 +58,10 @@ export class PaymentsController {
       res.json({ url: session.url });
     } catch (error) {
       console.error('Erro ao criar sessão de checkout:', error);
+      console.error('Detalhes do erro:', {
+        plano: req.body.plano,
+        planosDisponiveis: Object.keys(PLANOS)
+      });
       res.status(500).json({ error: 'Erro ao processar pagamento' });
     }
   }
@@ -54,11 +71,21 @@ export class PaymentsController {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     try {
+      console.log('Webhook recebido:', {
+        signature: sig,
+        body: req.body
+      });
+
       const event = stripe.webhooks.constructEvent(
         req.body,
         sig as string,
         webhookSecret as string
       );
+
+      console.log('Evento do Stripe:', {
+        type: event.type,
+        data: event.data.object
+      });
 
       switch (event.type) {
         case 'checkout.session.completed': {
@@ -66,14 +93,22 @@ export class PaymentsController {
           const userId = session.metadata.userId;
           const plano = session.metadata.plano;
 
+          console.log('Atualizando plano do usuário:', {
+            userId,
+            plano,
+            session
+          });
+
           await User.findByIdAndUpdate(userId, {
             'plan.type': plano,
             'plan.status': 'ACTIVE',
             'plan.startDate': new Date(),
             'plan.stripeCustomerId': session.customer,
             'plan.stripeSubscriptionId': session.subscription,
-            'plan.expirationDate': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
+            'plan.expirationDate': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           });
+
+          console.log('Plano atualizado com sucesso');
           break;
         }
 
