@@ -5,6 +5,7 @@ import './src/config/database'  // Importa a configuração do banco
 import { userRoutes } from './src/routes/user.routes'
 import { authRoutes } from './src/routes/auth.routes'
 import { linkRoutes } from './src/routes/link.routes'
+import { paymentsRoutes } from './src/routes/payments.routes'
 import fs from 'fs'
 import dotenv from 'dotenv'
 
@@ -25,15 +26,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
 
-app.use(express.json())
+ 
+ 
 
-// Pode remover ou comentar estas linhas já que não usaremos mais
-// const uploadsPath = path.join(process.cwd(), 'public/uploads')
-// fs.mkdirSync(uploadsPath, { recursive: true })
-// app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')))
+app.use(express.json())
+ 
 
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/links', linkRoutes)
+app.use('/api/payments', paymentsRoutes)
 
 export default app 

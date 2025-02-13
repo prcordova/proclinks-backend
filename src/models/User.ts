@@ -142,7 +142,7 @@ const userSchema = new mongoose.Schema({
     status: {
       type: String,
       enum: Object.values(PlanStatus),
-      default: PlanStatus.ACTIVE
+      default: PlanStatus.INACTIVE
     },
     startDate: {
       type: Date,

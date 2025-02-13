@@ -6,6 +6,7 @@ export enum PlanType {
 }
 
 export enum PlanStatus {
+  INACTIVE = 'INACTIVE',
   ACTIVE = 'ACTIVE',
   CANCELLED = 'CANCELLED',
   EXPIRED = 'EXPIRED'
