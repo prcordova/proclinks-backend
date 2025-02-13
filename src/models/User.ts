@@ -30,16 +30,26 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
     lowercase: true,
+    trim: true
   },
   email: {
     type: String,
     required: true,
     unique: true,
+    trim: true,
     lowercase: true,
+
   },
   password: {
     type: String,
+    required: true
+  },
+  fullName: {
+    type: String,
     required: true,
+    trim: true,
+    lowercase: true,
+
   },
   bio: {
     type: String,
@@ -161,10 +171,10 @@ const userSchema = new mongoose.Schema({
       default: null
     }
   },
- 
   phone: {
     type: String,
     required: true,
+    trim: true,
     unique: true,
     validate: {
       validator: function(phone: string) {
@@ -173,6 +183,10 @@ const userSchema = new mongoose.Schema({
       },
       message: 'Telefone inválido'
     }
+  },
+  birthDate: {
+    type: Date,
+    required: true
   },
   termsAndPrivacy: {
     terms: {
@@ -216,6 +230,7 @@ export interface IUser extends mongoose.Document {
   username: string;
   email: string;
   password: string;
+  fullName: string;
   bio?: string;
   avatar?: string | null;
   profile: any; // você pode definir uma interface específica para profile
@@ -227,8 +242,8 @@ export interface IUser extends mongoose.Document {
   followersCount: number;
   followingCount: number;
   plan: IPlan;
- 
   phone: string;
+  birthDate: Date;
   termsAndPrivacy: {
     terms: {
       accepted: boolean;

@@ -34,19 +34,19 @@ export const register = async (req: Request, res: Response) => {
     }
 
     // Verifica cada campo individualmente para mensagens específicas
-    const existingUsername = await User.findOne({ username })
+    const existingUsername = await User.findOne({ username: username.toLowerCase() })
     if (existingUsername) {
       return res.status(400).json({
         success: false,
-        message: 'Nome de usuário já está em uso'
+        message: 'Username já está em uso'
       })
     }
 
-    const existingEmail = await User.findOne({ email })
+    const existingEmail = await User.findOne({ email: email.toLowerCase() })
     if (existingEmail) {
       return res.status(400).json({
         success: false,
-        message: 'Email já está cadastrado'
+        message: 'Email já está em uso'
       })
     }
 
@@ -56,7 +56,7 @@ export const register = async (req: Request, res: Response) => {
     if (existingPhone) {
       return res.status(400).json({
         success: false,
-        message: 'Telefone já está cadastrado'
+        message: 'Telefone já está em uso'
       })
     }
 
@@ -118,20 +118,15 @@ export const register = async (req: Request, res: Response) => {
     
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0]
-      const fieldMap: { [key: string]: string } = {
-        username: 'Nome de usuário',
-        email: 'Email',
-         phone: 'Telefone'
-      }
       return res.status(400).json({ 
         success: false, 
-        message: `${fieldMap[field] || 'Campo'} já está em uso` 
+        message: `${field.charAt(0).toUpperCase() + field.slice(1)} já está em uso` 
       })
     }
 
     res.status(500).json({ 
       success: false, 
-      message: error.message || 'Erro interno do servidor' 
+      message: 'Erro ao criar conta' 
     })
   }
 }
