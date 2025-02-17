@@ -11,17 +11,17 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 export const PLANOS = {
   BRONZE: {
     id: 'price_1QrsXUIgj86kFVX92m3vDmVu',
-    name: 'Bronze',
+    name: 'BRONZE',
     price: 29.90
   },
   SILVER: {
     id: 'price_1QrsY1Igj86kFVX9l0VRRQ83',
-    name: 'Silver',
+    name: 'SILVER',
     price: 49.90
   },
   GOLD: {
     id: 'price_1QrsYjIgj86kFVX9qT0jIuKK',
-    name: 'Gold',
+    name: 'GOLD',
     price: 99.90
   }
-}; 
+} as const; 

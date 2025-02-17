@@ -17,6 +17,10 @@ export class PaymentsController {
       // Verifica se o plano é válido
       const planConfig = PLANOS[plano as keyof typeof PLANOS];
       if (!planConfig) {
+        console.error('Configuração de plano inválida:', {
+          planoRecebido: plano,
+          planosDisponiveis: Object.keys(PLANOS)
+        });
         return res.status(400).json({ error: `Plano inválido: ${plano}` });
       }
 
@@ -37,6 +41,12 @@ export class PaymentsController {
         });
         stripeCustomerId = customer.id;
       }
+
+      console.log('Criando sessão de checkout:', {
+        plano,
+        priceId: planConfig.id,
+        customerId: stripeCustomerId
+      });
 
       const session = await stripe.checkout.sessions.create({
         customer: stripeCustomerId,
