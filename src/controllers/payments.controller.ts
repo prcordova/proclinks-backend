@@ -173,12 +173,32 @@ export class PaymentsController {
           const subscription = event.data.object as any;
           const userId = subscription.metadata.userId;
 
+          console.log('Assinatura finalizada, convertendo para FREE:', {
+            userId,
+            subscriptionId: subscription.id
+          });
+
           await User.findByIdAndUpdate(userId, {
             'plan.type': 'FREE',
             'plan.status': 'INACTIVE',
             'plan.expirationDate': new Date(),
             'plan.stripeSubscriptionId': null
           });
+
+          console.log('Usuário convertido para plano FREE');
+          break;
+        }
+
+        case 'customer.subscription.updated': {
+          const subscription = event.data.object as any;
+          if (subscription.cancel_at_period_end && subscription.status === 'active') {
+            const userId = subscription.metadata.userId;
+            
+            console.log('Assinatura será cancelada ao fim do período:', {
+              userId,
+              expirationDate: new Date(subscription.current_period_end * 1000)
+            });
+          }
           break;
         }
       }
@@ -209,16 +229,30 @@ export class PaymentsController {
         return res.status(400).json({ error: 'Nenhuma assinatura ativa' });
       }
 
-      await stripe.subscriptions.cancel(user.plan.stripeSubscriptionId);
-
-      await User.findByIdAndUpdate(userId, {
-        'plan.type': 'FREE',
-        'plan.status': 'INACTIVE',
-        'plan.expirationDate': new Date(),
-        'plan.stripeSubscriptionId': null
+      // Recupera a assinatura do Stripe para obter o período atual
+      const subscription = await stripe.subscriptions.retrieve(user.plan.stripeSubscriptionId);
+      
+      // Cancela a assinatura no final do período
+      await stripe.subscriptions.update(user.plan.stripeSubscriptionId, {
+        cancel_at_period_end: true
       });
 
-      res.json({ message: 'Assinatura cancelada com sucesso' });
+      // Atualiza o usuário mantendo acesso até o final do período
+      await User.findByIdAndUpdate(userId, {
+        'plan.status': 'CANCELLED',
+        'plan.expirationDate': new Date(subscription.current_period_end * 1000), // Converte timestamp para Date
+      });
+
+      console.log('Assinatura cancelada:', {
+        userId,
+        subscriptionId: user.plan.stripeSubscriptionId,
+        expirationDate: new Date(subscription.current_period_end * 1000)
+      });
+
+      res.json({ 
+        message: 'Assinatura cancelada com sucesso',
+        expirationDate: new Date(subscription.current_period_end * 1000)
+      });
     } catch (error) {
       console.error('Erro ao cancelar assinatura:', error);
       res.status(500).json({ error: 'Erro ao cancelar assinatura' });
