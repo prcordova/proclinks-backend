@@ -4,24 +4,37 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('STRIPE_SECRET_KEY não está definida');
 }
 
+// Verificar todas as variáveis de ambiente necessárias
+const requiredEnvVars = {
+  STRIPE_PRICE_BRONZE_ID: process.env.STRIPE_PRICE_BRONZE_ID,
+  STRIPE_PRICE_SILVER_ID: process.env.STRIPE_PRICE_SILVER_ID,
+  STRIPE_PRICE_GOLD_ID: process.env.STRIPE_PRICE_GOLD_ID,
+};
+
+for (const [key, value] of Object.entries(requiredEnvVars)) {
+  if (!value) {
+    throw new Error(`Variável de ambiente ${key} não está definida`);
+  }
+}
+
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-01-27.acacia'
 });
 
 export const PLANOS = {
   BRONZE: {
-    id: 'price_1QrsXUIgj86kFVX92m3vDmVu',
+    id: process.env.STRIPE_PRICE_BRONZE_ID!,
     name: 'BRONZE',
     price: 29.90
   },
   SILVER: {
-    id: 'price_1QrsY1Igj86kFVX9l0VRRQ83',
+    id: process.env.STRIPE_PRICE_SILVER_ID!,
     name: 'SILVER',
     price: 49.90
   },
   GOLD: {
-    id: 'price_1QrsYjIgj86kFVX9qT0jIuKK',
+    id: process.env.STRIPE_PRICE_GOLD_ID!,
     name: 'GOLD',
     price: 99.90
   }
-} as const; 
+} as const;
