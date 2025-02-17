@@ -16,7 +16,7 @@ const app = express()
 // Configuração específica do CORS
 app.use(cors({
   origin: [
-    'https://proclinks-frontend-a9gfxs6za-prcordovas-projects.vercel.app',
+    'https://www.melter.com.br', 
     'https://proclinks.vercel.app',
     'http://localhost:3000',
     'https://proclinks-avatars-dev.s3.us-east-2.amazonaws.com'
