@@ -26,11 +26,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
 
- 
- 
-
-app.use(express.json())
- 
+// Configuração do express.json para todas as rotas EXCETO o webhook
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/payments/webhook') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)

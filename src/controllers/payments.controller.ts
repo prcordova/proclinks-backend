@@ -71,15 +71,20 @@ export class PaymentsController {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     try {
-      console.log('Webhook recebido:', {
-        signature: sig,
-        body: req.body
-      });
+      if (!sig || !webhookSecret) {
+        console.error('Webhook Error: Faltando signature ou webhook secret');
+        return res.status(400).json({ error: 'Configuração do webhook inválida' });
+      }
+
+      console.log('Recebendo webhook do Stripe');
+      console.log('Signature:', sig);
+      console.log('Body type:', typeof req.body);
+      console.log('Body é Buffer?', Buffer.isBuffer(req.body));
 
       const event = stripe.webhooks.constructEvent(
         req.body,
-        sig as string,
-        webhookSecret as string
+        sig,
+        webhookSecret
       );
 
       console.log('Evento do Stripe:', {
@@ -99,6 +104,10 @@ export class PaymentsController {
             session
           });
 
+          if (!['BRONZE', 'SILVER', 'GOLD'].includes(plano)) {
+            throw new Error(`Tipo de plano inválido: ${plano}`);
+          }
+
           await User.findByIdAndUpdate(userId, {
             'plan.type': plano,
             'plan.status': 'ACTIVE',
@@ -108,18 +117,23 @@ export class PaymentsController {
             'plan.expirationDate': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           });
 
-          console.log('Plano atualizado com sucesso');
+          console.log('Plano atualizado com sucesso:', {
+            tipo: plano,
+            status: 'ACTIVE',
+            expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          });
           break;
         }
 
         case 'invoice.payment_succeeded': {
-          // Renovação mensal
           const invoice = event.data.object as any;
           const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
           const userId = subscription.metadata.userId;
+          const plano = subscription.metadata.plano;
 
           await User.findByIdAndUpdate(userId, {
             'plan.status': 'ACTIVE',
+            'plan.type': plano,
             'plan.expirationDate': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           });
           break;
@@ -152,9 +166,18 @@ export class PaymentsController {
 
       res.json({ received: true });
     } catch (error) {
-      console.error('Erro no webhook:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-      res.status(400).send(`Webhook Error: ${errorMessage}`);
+      console.error('Erro detalhado no webhook:', {
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+        bodyType: typeof req.body,
+        isBuffer: Buffer.isBuffer(req.body),
+        signature: sig,
+        hasWebhookSecret: !!webhookSecret
+      });
+      
+      return res.status(400).json({ 
+        error: 'Webhook Error',
+        details: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
     }
   }
 
