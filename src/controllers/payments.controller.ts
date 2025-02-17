@@ -40,29 +40,35 @@ export class PaymentsController {
           }
         });
         stripeCustomerId = customer.id;
+        
+        // Atualiza o stripeCustomerId do usuário
+        await User.findByIdAndUpdate(userId, {
+          'plan.stripeCustomerId': customer.id
+        });
       }
 
-      console.log('Criando sessão de checkout:', {
-        plano,
-        priceId: planConfig.id,
-        customerId: stripeCustomerId
-      });
-
-      const session = await stripe.checkout.sessions.create({
+      const sessionData = {
         customer: stripeCustomerId,
-        line_items: [
-          {
-            price: planConfig.id,
-            quantity: 1,
-          },
-        ],
-        mode: 'subscription',
+        line_items: [{
+          price: planConfig.id,
+          quantity: 1
+        }],
+        mode: 'subscription' as const,
         success_url: `${process.env.FRONTEND_URL}/planos/sucesso?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.FRONTEND_URL}/planos`,
         metadata: {
           userId: user._id.toString(),
           plano: plano
         }
+      };
+
+      console.log('Dados da sessão de checkout:', sessionData);
+
+      const session = await stripe.checkout.sessions.create(sessionData);
+
+      console.log('Sessão criada com sucesso:', {
+        sessionId: session.id,
+        url: session.url
       });
 
       res.json({ url: session.url });
@@ -72,7 +78,10 @@ export class PaymentsController {
         plano: req.body.plano,
         planosDisponiveis: Object.keys(PLANOS)
       });
-      res.status(500).json({ error: 'Erro ao processar pagamento' });
+      res.status(500).json({ 
+        error: 'Erro ao processar pagamento',
+        details: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
     }
   }
 
