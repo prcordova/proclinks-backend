@@ -90,28 +90,15 @@ export class FriendshipController {
   // Aceitar solicitação de amizade
   static async acceptFriendRequest(req: Request, res: Response): Promise<Response> {
     try {
-      const recipientId = (req as AuthRequest).user?.id
-      const { requesterId } = req.params
+      const userId = (req as AuthRequest).user?.id
+      const requestId = req.params.requestId
 
-      // Primeiro, vamos remover quaisquer amizades duplicadas
-      await Friendship.deleteMany({
-        $and: [
-          {
-            $or: [
-              { requester: requesterId, recipient: recipientId },
-              { requester: recipientId, recipient: requesterId }
-            ]
-          },
-          { status: { $ne: FriendshipStatus.PENDING } } // Mantém apenas a solicitação pendente
-        ]
-      })
+      console.log('Request ID:', requestId)
+      console.log('User ID:', userId)
 
-      // Agora procura a solicitação pendente
       const friendship = await Friendship.findOne({
-        $or: [
-          { requester: requesterId, recipient: recipientId },
-          { requester: recipientId, recipient: requesterId }
-        ],
+        _id: requestId,
+        recipient: userId,
         status: FriendshipStatus.PENDING
       })
 
@@ -126,12 +113,10 @@ export class FriendshipController {
       friendship.updatedAt = new Date()
       await friendship.save()
 
-      return res.status(200).json({
+      return res.json({
         success: true,
-        message: 'Solicitação de amizade aceita com sucesso',
-        data: friendship
+        message: 'Solicitação de amizade aceita com sucesso'
       })
-
     } catch (error) {
       console.error('Erro ao aceitar solicitação de amizade:', error)
       return res.status(500).json({
@@ -145,36 +130,56 @@ export class FriendshipController {
   static async rejectFriendRequest(req: Request, res: Response): Promise<Response> {
     try {
       const userId = (req as AuthRequest).user?.id
-      const { friendshipId } = req.params
+      const requestId = req.params.requestId
 
-      const friendship = await Friendship.findOne({
-        $or: [
-          { requester: userId, recipient: friendshipId },
-          { requester: friendshipId, recipient: userId }
-        ]
+      console.log('User ID:', userId)
+      console.log('Request ID:', requestId)
+
+      // Primeiro, tenta encontrar por ID
+      let friendship = await Friendship.findOne({
+        _id: requestId,
+        status: FriendshipStatus.PENDING
       })
+
+      // Se não encontrar por ID, tenta encontrar pela combinação de usuários
+      if (!friendship) {
+        friendship = await Friendship.findOne({
+          $or: [
+            { requester: userId, recipient: requestId },
+            { requester: requestId, recipient: userId }
+          ],
+          status: FriendshipStatus.PENDING
+        })
+      }
 
       if (!friendship) {
         return res.status(404).json({
           success: false,
-          message: 'Relacionamento não encontrado'
+          message: 'Solicitação de amizade não encontrada'
         })
       }
 
-      // Apenas atualiza o status para NONE
+      // Verifica se o usuário tem permissão
+      if (friendship.requester.toString() !== userId && friendship.recipient.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Não autorizado a rejeitar esta solicitação'
+        })
+      }
+
       friendship.status = FriendshipStatus.NONE
       friendship.updatedAt = new Date()
       await friendship.save()
 
-      return res.status(200).json({
+      return res.json({
         success: true,
-        message: 'Relacionamento atualizado com sucesso'
+        message: 'Solicitação de amizade rejeitada com sucesso'
       })
     } catch (error) {
-      console.error('Erro ao atualizar relacionamento:', error)
+      console.error('Erro ao rejeitar solicitação de amizade:', error)
       return res.status(500).json({
         success: false,
-        message: 'Erro ao atualizar relacionamento'
+        message: 'Erro ao rejeitar solicitação de amizade'
       })
     }
   }
@@ -313,9 +318,50 @@ export class FriendshipController {
       })
     } catch (error) {
       console.error('Erro ao listar solicitações recebidas:', error)
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Erro ao listar solicitações recebidas' 
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao listar solicitações recebidas'
+      })
+    }
+  }
+
+  static async unfriend(req: Request, res: Response): Promise<Response> {
+    try {
+      const userId = (req as AuthRequest).user?.id
+      const friendshipId = req.params.friendshipId
+
+      const friendship = await Friendship.findById(friendshipId)
+
+      if (!friendship) {
+        return res.status(404).json({
+          success: false,
+          message: 'Amizade não encontrada'
+        })
+      }
+
+      // Verifica se o usuário é parte da amizade
+      if (friendship.requester.toString() !== userId && friendship.recipient.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Não autorizado'
+        })
+      }
+
+      // Atualiza o status para NONE em vez de UNFRIENDED
+      await Friendship.findByIdAndUpdate(friendshipId, {
+        status: FriendshipStatus.NONE,
+        updatedAt: new Date()
+      })
+
+      return res.json({
+        success: true,
+        message: 'Amizade desfeita com sucesso'
+      })
+    } catch (error) {
+      console.error('Erro ao desfazer amizade:', error)
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao desfazer amizade'
       })
     }
   }

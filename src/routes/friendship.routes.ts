@@ -9,6 +9,7 @@ router.get('/requests/sent', authMiddleware, FriendshipController.listSentReques
 router.get('/requests/received', authMiddleware, FriendshipController.listReceivedRequests)
 router.post('/requests', authMiddleware, FriendshipController.sendFriendRequest)
 router.post('/requests/:requestId/accept', authMiddleware, FriendshipController.acceptFriendRequest)
-router.delete('/requests/:requestId', authMiddleware, FriendshipController.rejectFriendRequest)
+router.post('/requests/:requestId/reject', authMiddleware, FriendshipController.rejectFriendRequest)
+router.post('/:friendshipId/unfriend', authMiddleware, FriendshipController.unfriend)
 
 export default router
