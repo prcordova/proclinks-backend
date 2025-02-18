@@ -33,38 +33,39 @@ export class FriendshipController {
       const requesterId = (req as AuthRequest).user?.id
       const { recipientId } = req.body
 
-      const existingFriendship = await Friendship.findOne({
+      // Verifica se já existe qualquer tipo de relacionamento
+      let friendship = await Friendship.findOne({
         $or: [
           { requester: requesterId, recipient: recipientId },
           { requester: recipientId, recipient: requesterId }
         ]
       })
 
-      if (existingFriendship) {
-        // Se o status é NONE, permite reenviar a solicitação
-        if (existingFriendship.status === FriendshipStatus.NONE) {
-          existingFriendship.status = FriendshipStatus.PENDING
-          existingFriendship.requester = requesterId
-          existingFriendship.recipient = recipientId
-          await existingFriendship.save()
-          return res.status(200).json({
-            success: true,
-            message: 'Solicitação de amizade enviada',
-            data: existingFriendship
-          })
-        }
-
-        // Se já existe e está PENDING ou FRIENDLY, retorna erro
-        if ([FriendshipStatus.PENDING, FriendshipStatus.FRIENDLY].includes(existingFriendship.status)) {
+      if (friendship) {
+        // Se já é amigo ou tem solicitação pendente, não permite alteração
+        if ([FriendshipStatus.FRIENDLY, FriendshipStatus.PENDING].includes(friendship.status)) {
           return res.status(400).json({
             success: false,
-            message: 'Já existe uma solicitação de amizade ou amizade entre estes usuários'
+            message: friendship.status === FriendshipStatus.FRIENDLY 
+              ? 'Vocês já são amigos' 
+              : 'Já existe uma solicitação pendente'
           })
         }
+
+        // Se o status é NONE, apenas atualiza para PENDING
+        friendship.status = FriendshipStatus.PENDING
+        friendship.updatedAt = new Date()
+        await friendship.save()
+
+        return res.status(200).json({
+          success: true,
+          message: 'Solicitação de amizade enviada',
+          data: friendship
+        })
       }
 
-      // Se não existe, cria nova solicitação
-      const friendship = await Friendship.create({
+      // Se não existe nenhum relacionamento, cria novo
+      friendship = await Friendship.create({
         requester: requesterId,
         recipient: recipientId,
         status: FriendshipStatus.PENDING
@@ -86,14 +87,30 @@ export class FriendshipController {
   }
 
   // Aceitar solicitação de amizade
-  public async acceptFriendRequest(req: AuthRequest, res: Response): Promise<Response> {
+  public async acceptFriendRequest(req: Request, res: Response): Promise<Response> {
     try {
-      const recipientId = req.user.id
+      const recipientId = (req as AuthRequest).user?.id
       const { requesterId } = req.params
 
+      // Primeiro, vamos remover quaisquer amizades duplicadas
+      await Friendship.deleteMany({
+        $and: [
+          {
+            $or: [
+              { requester: requesterId, recipient: recipientId },
+              { requester: recipientId, recipient: requesterId }
+            ]
+          },
+          { status: { $ne: FriendshipStatus.PENDING } } // Mantém apenas a solicitação pendente
+        ]
+      })
+
+      // Agora procura a solicitação pendente
       const friendship = await Friendship.findOne({
-        requester: requesterId,
-        recipient: recipientId,
+        $or: [
+          { requester: requesterId, recipient: recipientId },
+          { requester: recipientId, recipient: requesterId }
+        ],
         status: FriendshipStatus.PENDING
       })
 
@@ -110,8 +127,10 @@ export class FriendshipController {
 
       return res.status(200).json({
         success: true,
-        message: 'Solicitação de amizade aceita com sucesso'
+        message: 'Solicitação de amizade aceita com sucesso',
+        data: friendship
       })
+
     } catch (error) {
       console.error('Erro ao aceitar solicitação de amizade:', error)
       return res.status(500).json({
@@ -131,30 +150,30 @@ export class FriendshipController {
         $or: [
           { requester: userId, recipient: friendshipId },
           { requester: friendshipId, recipient: userId }
-        ],
-        status: { $in: [FriendshipStatus.PENDING, FriendshipStatus.FRIENDLY] }
+        ]
       })
 
       if (!friendship) {
         return res.status(404).json({
           success: false,
-          message: 'Solicitação de amizade não encontrada'
+          message: 'Relacionamento não encontrado'
         })
       }
 
+      // Apenas atualiza o status para NONE
       friendship.status = FriendshipStatus.NONE
       friendship.updatedAt = new Date()
       await friendship.save()
 
       return res.status(200).json({
         success: true,
-        message: 'Solicitação de amizade cancelada/recusada com sucesso'
+        message: 'Relacionamento atualizado com sucesso'
       })
     } catch (error) {
-      console.error('Erro ao cancelar/recusar solicitação de amizade:', error)
+      console.error('Erro ao atualizar relacionamento:', error)
       return res.status(500).json({
         success: false,
-        message: 'Erro ao cancelar/recusar solicitação de amizade'
+        message: 'Erro ao atualizar relacionamento'
       })
     }
   }

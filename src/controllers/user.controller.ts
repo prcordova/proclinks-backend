@@ -6,6 +6,8 @@ import fs from "fs";
 import { PlanType, PlanStatus, PLAN_FEATURES } from "../models/Plans";
 import { UploadService } from '../services/upload.service';
 import { Friendship } from "../models/Friendship";
+import { FriendshipStatus } from "../models/Friendship";
+import mongoose from "mongoose";
 
 interface AuthRequest extends Request {
   user: {
@@ -306,50 +308,82 @@ export class UserController {
 
   public async listUsers(req: Request, res: Response): Promise<Response> {
     try {
-      const { page = 1, limit = 10, filter, search } = req.query
-      const userId = (req as AuthRequest).user?.id
+      console.log('Headers:', req.headers)
+      console.log('Auth User:', (req as AuthRequest).user)
+      
+      const currentUserId = (req as any).user?._id || (req as AuthRequest).user?.id
 
-      // Busca os usuários
-      let query = search 
-        ? { username: { $regex: search, $options: 'i' } }
-        : {}
+      if (!currentUserId) {
+        console.log('Auth falhou. Request completo:', {
+          headers: req.headers,
+          user: (req as any).user,
+          authUser: (req as AuthRequest).user
+        })
+        return res.status(401).json({
+          success: false,
+          message: 'Usuário não autenticado'
+        })
+      }
 
-      const users = await User.find(query)
-        .select('username avatar bio plan followers following')
-        .sort(filter === 'recent' ? { createdAt: -1 } : { username: 1 })
-        .skip((Number(page) - 1) * Number(limit))
-        .limit(Number(limit))
+      const { page = 1, limit = 20, filter, search } = req.query
 
-      // Busca as amizades do usuário atual
+      let query = {}
+      if (search) {
+        query = {
+          username: { $regex: search, $options: 'i' }
+        }
+      }
+
+      const users = await User.find({ 
+        ...query, 
+        _id: { $ne: currentUserId } 
+      })
+      .select('username bio avatar plan followers following')
+      .lean()
+
+      // Buscar todas as amizades do usuário atual
       const friendships = await Friendship.find({
         $or: [
-          { requester: userId },
-          { recipient: userId }
+          { requester: currentUserId },
+          { recipient: currentUserId }
         ]
+      }).lean()
+
+      console.log('Current User ID:', currentUserId)
+      console.log('Amizades encontradas:', friendships)
+
+      // Criar mapa de amizades
+      const friendshipMap = new Map()
+      friendships.forEach(friendship => {
+        const otherUserId = friendship.requester.toString() === currentUserId 
+          ? friendship.recipient.toString()
+          : friendship.requester.toString()
+        
+        friendshipMap.set(otherUserId, friendship.status)
       })
 
-      // Mapeia os usuários incluindo o status de amizade
+      // Adicionar status de amizade aos usuários
       const usersWithFriendshipStatus = users.map(user => {
-        const friendship = friendships.find(f => 
-          (f.requester.toString() === userId && f.recipient.toString() === user._id.toString()) ||
-          (f.recipient.toString() === userId && f.requester.toString() === user._id.toString())
-        )
-
+        const status = friendshipMap.get(user._id.toString())
         return {
-          ...user.toObject(),
-          friendshipStatus: friendship?.status || 'NONE'
+          ...user,
+          friendshipStatus: status || FriendshipStatus.NONE
         }
       })
+
+      const featuredUsers = search ? [] : usersWithFriendshipStatus
+      const searchResults = search ? usersWithFriendshipStatus : []
 
       return res.status(200).json({
         success: true,
         data: {
-          searchResults: search ? usersWithFriendshipStatus : [],
-          featuredUsers: !search ? usersWithFriendshipStatus : [],
+          searchResults,
+          featuredUsers,
           page: Number(page),
           hasMore: users.length === Number(limit)
         }
       })
+
     } catch (error) {
       console.error('Erro ao listar usuários:', error)
       return res.status(500).json({
