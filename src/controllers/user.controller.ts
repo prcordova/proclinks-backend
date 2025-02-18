@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { PlanType, PlanStatus, PLAN_FEATURES } from "../models/Plans";
 import { UploadService } from '../services/upload.service';
+import { Friendship } from "../models/Friendship";
 
 interface AuthRequest extends Request {
   user: {
@@ -303,89 +304,58 @@ export class UserController {
     }
   }
 
-  async listUsers(req: Request, res: Response) {
+  public async listUsers(req: Request, res: Response): Promise<Response> {
     try {
-      const { page = 1, limit = 20, filter = "popular", search } = req.query;
-      const skip = (Number(page) - 1) * Number(limit);
+      const { page = 1, limit = 10, filter, search } = req.query
+      const userId = (req as AuthRequest).user?.id
 
-      // Condição base de match
-      const matchCondition: any = { 
-        isPublic: true,
-        ...(search && {
-          $or: [
-            { username: { $regex: `^${search}`, $options: 'i' } },
-            { name: { $regex: `^${search}`, $options: 'i' } },
-            { bio: { $regex: search, $options: 'i' } }
-          ]
-        })
-      };
+      // Busca os usuários
+      let query = search 
+        ? { username: { $regex: search, $options: 'i' } }
+        : {}
 
-      // Determina a ordenação baseada no filtro
-      const sortCondition: Record<string, 1 | -1> = filter === 'recent' 
-        ? { createdAt: -1 } 
-        : { relevanceScore: -1 };
+      const users = await User.find(query)
+        .select('username avatar bio plan followers following')
+        .sort(filter === 'recent' ? { createdAt: -1 } : { username: 1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit))
 
-      const featuredUsers = await User.aggregate([
-        { $match: matchCondition },
-        {
-          $addFields: {
-            relevanceScore: {
-              $add: [
-                {
-                  $switch: {
-                    branches: [
-                      { case: { $eq: ["$plan.type", "GOLD"] }, then: 100 },
-                      { case: { $eq: ["$plan.type", "SILVER"] }, then: 50 },
-                      { case: { $eq: ["$plan.type", "BRONZE"] }, then: 25 },
-                    ],
-                    default: 0,
-                  },
-                },
-                { $multiply: [{ $size: "$followers" }, 0.5] },
-                { $multiply: [{ $sum: "$links.likes" }, 0.3] },
-                {
-                  $cond: {
-                    if: {
-                      $gte: [
-                        "$lastLogin",
-                        { $subtract: [new Date(), 7 * 24 * 60 * 60 * 1000] },
-                      ],
-                    },
-                    then: 30,
-                    else: 0,
-                  },
-                },
-              ],
-            },
-          },
-        },
-        { $sort: sortCondition },
-        { $skip: skip },
-        { $limit: Number(limit) },
-        {
-          $project: {
-            _id: 1,
-            username: 1,
-            avatar: 1,
-            bio: 1,
-            followers: { $size: "$followers" },
-            following: { $size: "$following" },
-            "plan.type": 1,
-            relevanceScore: 1,
-            createdAt: 1
-          }
+      // Busca as amizades do usuário atual
+      const friendships = await Friendship.find({
+        $or: [
+          { requester: userId },
+          { recipient: userId }
+        ]
+      })
+
+      // Mapeia os usuários incluindo o status de amizade
+      const usersWithFriendshipStatus = users.map(user => {
+        const friendship = friendships.find(f => 
+          (f.requester.toString() === userId && f.recipient.toString() === user._id.toString()) ||
+          (f.recipient.toString() === userId && f.requester.toString() === user._id.toString())
+        )
+
+        return {
+          ...user.toObject(),
+          friendshipStatus: friendship?.status || 'NONE'
         }
-      ]);
+      })
 
-      res.json({
-        searchResults: search ? featuredUsers : [], // Retorna resultados da busca se houver search
-        featuredUsers: search ? [] : featuredUsers, // Retorna featured apenas se não houver search
-        page: Number(page),
-        hasMore: featuredUsers.length === Number(limit),
-      });
+      return res.status(200).json({
+        success: true,
+        data: {
+          searchResults: search ? usersWithFriendshipStatus : [],
+          featuredUsers: !search ? usersWithFriendshipStatus : [],
+          page: Number(page),
+          hasMore: users.length === Number(limit)
+        }
+      })
     } catch (error) {
-      console.error("Erro ao listar usuários:", error);
-      res.status(500).json({ message: "Erro ao listar usuários" });
+      console.error('Erro ao listar usuários:', error)
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao listar usuários'
+      })
     }
   }
 

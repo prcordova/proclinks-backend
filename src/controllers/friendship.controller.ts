@@ -14,6 +14,8 @@ interface PopulatedUser {
   username: string;
   avatar?: string;
   bio?: string;
+  followers?: string[];
+  following?: string[];
 }
 
 interface IFriendship extends mongoose.Document {
@@ -26,29 +28,11 @@ interface IFriendship extends mongoose.Document {
 
 export class FriendshipController {
   // Enviar solicitação de amizade
-  public async sendFriendRequest(req: AuthRequest, res: Response): Promise<Response> {
+  public async sendFriendRequest(req: Request, res: Response): Promise<Response> {
     try {
-      const requesterId = req.user.id
+      const requesterId = (req as AuthRequest).user?.id
       const { recipientId } = req.body
 
-      // Verifica se não está tentando adicionar a si mesmo
-      if (requesterId === recipientId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Você não pode enviar solicitação de amizade para si mesmo'
-        })
-      }
-
-      // Verifica se o destinatário existe
-      const recipientExists = await User.exists({ _id: recipientId })
-      if (!recipientExists) {
-        return res.status(404).json({
-          success: false,
-          message: 'Usuário destinatário não encontrado'
-        })
-      }
-
-      // Verifica se já existe uma solicitação
       const existingFriendship = await Friendship.findOne({
         $or: [
           { requester: requesterId, recipient: recipientId },
@@ -57,33 +41,41 @@ export class FriendshipController {
       })
 
       if (existingFriendship) {
-        if (existingFriendship.status === FriendshipStatus.FRIENDLY) {
-          return res.status(400).json({
-            success: false,
-            message: 'Vocês já são amigos'
+        // Se o status é NONE, permite reenviar a solicitação
+        if (existingFriendship.status === FriendshipStatus.NONE) {
+          existingFriendship.status = FriendshipStatus.PENDING
+          existingFriendship.requester = requesterId
+          existingFriendship.recipient = recipientId
+          await existingFriendship.save()
+          return res.status(200).json({
+            success: true,
+            message: 'Solicitação de amizade enviada',
+            data: existingFriendship
           })
         }
-        if (existingFriendship.status === FriendshipStatus.PENDING) {
+
+        // Se já existe e está PENDING ou FRIENDLY, retorna erro
+        if ([FriendshipStatus.PENDING, FriendshipStatus.FRIENDLY].includes(existingFriendship.status)) {
           return res.status(400).json({
             success: false,
-            message: 'Já existe uma solicitação de amizade pendente'
+            message: 'Já existe uma solicitação de amizade ou amizade entre estes usuários'
           })
         }
       }
 
-      // Cria nova solicitação
-      const friendship = new Friendship({
+      // Se não existe, cria nova solicitação
+      const friendship = await Friendship.create({
         requester: requesterId,
         recipient: recipientId,
         status: FriendshipStatus.PENDING
       })
 
-      await friendship.save()
-
       return res.status(201).json({
         success: true,
-        message: 'Solicitação de amizade enviada com sucesso'
+        message: 'Solicitação de amizade enviada',
+        data: friendship
       })
+
     } catch (error) {
       console.error('Erro ao enviar solicitação de amizade:', error)
       return res.status(500).json({
@@ -213,28 +205,41 @@ export class FriendshipController {
   }
 
   // Listar solicitações pendentes
-  public async listPendingRequests(req: AuthRequest, res: Response): Promise<Response> {
+  public async listPendingRequests(req: Request, res: Response): Promise<Response> {
     try {
-      const userId = req.user.id
-      const { type = 'received' } = req.query
+      const userId = (req as AuthRequest).user?.id
 
-      const query = type === 'received'
-        ? { recipient: userId, status: FriendshipStatus.PENDING }
-        : { requester: userId, status: FriendshipStatus.PENDING }
+      const pendingRequests = await Friendship
+        .find({
+          $or: [
+            { requester: userId, status: 'PENDING' },
+            { recipient: userId, status: 'PENDING' }
+          ]
+        })
+        .populate('requester recipient', '_id username bio avatar followers following')
 
-      const requests = await Friendship.find(query)
-        .populate('requester recipient', 'username avatar bio')
-        .sort({ createdAt: -1 })
+      const requestsWithUserData = pendingRequests.map((request) => {
+        const otherUser = (request.requester as PopulatedUser)._id.toString() === userId 
+          ? (request.recipient as PopulatedUser)
+          : (request.requester as PopulatedUser)
 
-      const formattedRequests = requests.map(request => ({
-        id: request._id,
-        user: type === 'received' ? request.requester : request.recipient,
-        createdAt: request.createdAt
-      }))
+        return {
+          id: request._id,
+          user: {
+            _id: otherUser._id,
+            username: otherUser.username,
+            bio: otherUser.bio,
+            avatar: otherUser.avatar,
+            followers: otherUser.followers?.length || 0,
+            following: otherUser.following?.length || 0
+          },
+          createdAt: request.createdAt
+        }
+      })
 
       return res.status(200).json({
         success: true,
-        data: formattedRequests
+        data: requestsWithUserData
       })
     } catch (error) {
       console.error('Erro ao listar solicitações pendentes:', error)
