@@ -6,7 +6,7 @@ import { userRoutes } from './src/routes/user.routes'
 import { authRoutes } from './src/routes/auth.routes'
 import { linkRoutes } from './src/routes/link.routes'
 import { paymentsRoutes } from './src/routes/payments.routes'
-import { friendshipRoutes } from './src/routes/friendship.routes'
+import friendshipRoutes from './src/routes/friendship.routes' 
 
 import dotenv from 'dotenv'
 

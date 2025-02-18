@@ -1,7 +1,9 @@
 import { Request, Response } from 'express'
 import { Friendship, FriendshipStatus } from '../models/Friendship'
-import { User } from '../models/User'
+ 
 import mongoose from 'mongoose'
+ import { User } from '../models/User'
+import { authMiddleware } from '../middlewares/auth.middleware'
 
 interface AuthRequest extends Request {
   user: {
@@ -27,8 +29,7 @@ interface IFriendship extends mongoose.Document {
 }
 
 export class FriendshipController {
-  // Enviar solicitação de amizade
-  public async sendFriendRequest(req: Request, res: Response): Promise<Response> {
+  static async sendFriendRequest(req: Request, res: Response): Promise<Response> {
     try {
       const requesterId = (req as AuthRequest).user?.id
       const { recipientId } = req.body
@@ -87,7 +88,7 @@ export class FriendshipController {
   }
 
   // Aceitar solicitação de amizade
-  public async acceptFriendRequest(req: Request, res: Response): Promise<Response> {
+  static async acceptFriendRequest(req: Request, res: Response): Promise<Response> {
     try {
       const recipientId = (req as AuthRequest).user?.id
       const { requesterId } = req.params
@@ -141,9 +142,9 @@ export class FriendshipController {
   }
 
   // Recusar/Cancelar solicitação de amizade
-  public async rejectOrCancelFriendRequest(req: AuthRequest, res: Response): Promise<Response> {
+  static async rejectFriendRequest(req: Request, res: Response): Promise<Response> {
     try {
-      const userId = req.user.id
+      const userId = (req as AuthRequest).user?.id
       const { friendshipId } = req.params
 
       const friendship = await Friendship.findOne({
@@ -265,6 +266,56 @@ export class FriendshipController {
       return res.status(500).json({
         success: false,
         message: 'Erro ao listar solicitações pendentes'
+      })
+    }
+  }
+
+  static async listSentRequests(req: Request, res: Response): Promise<Response> {
+    try {
+      const userId = (req as AuthRequest).user?.id
+      const requests = await Friendship.find({
+        requester: userId,
+        status: FriendshipStatus.PENDING
+      }).populate('recipient', '_id username bio avatar followers following')
+      
+      return res.json({
+        success: true,
+        data: requests.map(req => ({
+          id: req._id,
+          user: req.recipient,
+          createdAt: req.createdAt
+        }))
+      })
+    } catch (error) {
+      console.error('Erro ao listar solicitações enviadas:', error)
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao listar solicitações enviadas' 
+      })
+    }
+  }
+
+  static async listReceivedRequests(req: Request, res: Response): Promise<Response> {
+    try {
+      const userId = (req as AuthRequest).user?.id
+      const requests = await Friendship.find({
+        recipient: userId,
+        status: FriendshipStatus.PENDING
+      }).populate('requester', '_id username bio avatar followers following')
+      
+      return res.json({
+        success: true,
+        data: requests.map(req => ({
+          id: req._id,
+          user: req.requester,
+          createdAt: req.createdAt
+        }))
+      })
+    } catch (error) {
+      console.error('Erro ao listar solicitações recebidas:', error)
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao listar solicitações recebidas' 
       })
     }
   }
