@@ -5,6 +5,7 @@ import { Friendship } from '../models/Friendship'
 
 const router = Router()
 
+router.get('/friends', authMiddleware, FriendshipController.listFriends)
 router.get('/requests/sent', authMiddleware, FriendshipController.listSentRequests)
 router.get('/requests/received', authMiddleware, FriendshipController.listReceivedRequests)
 router.post('/requests', authMiddleware, FriendshipController.sendFriendRequest)

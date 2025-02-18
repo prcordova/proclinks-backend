@@ -185,38 +185,35 @@ export class FriendshipController {
   }
 
   // Listar amigos
-  public async listFriends(req: AuthRequest, res: Response): Promise<Response> {
+  static async listFriends(req: Request, res: Response): Promise<Response> {
     try {
-      const userId = req.user.id
-      const { page = 1, limit = 20, sort = 'recent' } = req.query
+      const userId = (req as AuthRequest).user?.id
 
-      const skip = (Number(page) - 1) * Number(limit)
-      const sortOptions: Record<string, 1 | -1> = { [sort === 'recent' ? 'updatedAt' : 'username']: sort === 'recent' ? -1 : 1 }
-
-      const friendships = (await Friendship.find({
-        $or: [{ requester: userId }, { recipient: userId }],
+      const friendships = await Friendship.find({
+        $or: [
+          { requester: userId },
+          { recipient: userId }
+        ],
         status: FriendshipStatus.FRIENDLY
-      })
-      .populate('requester recipient', 'username avatar bio')
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(Number(limit))) as (IFriendship & { requester: PopulatedUser, recipient: PopulatedUser })[]
+      }).populate('requester recipient', '_id username bio avatar followers following')
 
       const friends = friendships.map(friendship => {
-        const friend = friendship.requester._id.toString() === userId 
-          ? friendship.recipient 
-          : friendship.requester
+        const friend = (friendship.requester as PopulatedUser)._id.toString() === userId 
+          ? (friendship.recipient as PopulatedUser)
+          : (friendship.requester as PopulatedUser)
+
         return {
           id: friend._id,
           username: friend.username,
-          avatar: friend.avatar,
           bio: friend.bio,
-          friendshipId: friendship._id,
-          since: friendship.updatedAt
+          avatar: friend.avatar,
+          followers: friend.followers,
+          following: friend.following,
+          friendshipId: friendship._id
         }
       })
 
-      return res.status(200).json({
+      return res.json({
         success: true,
         data: friends
       })
