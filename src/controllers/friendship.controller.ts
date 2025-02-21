@@ -34,6 +34,14 @@ export class FriendshipController {
       const requesterId = (req as AuthRequest).user?.id
       const { recipientId } = req.body
 
+      // Evita auto-amizade
+      if (requesterId === recipientId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Não é possível enviar solicitação para si mesmo'
+        })
+      }
+
       // Verifica se já existe qualquer tipo de relacionamento
       let friendship = await Friendship.findOne({
         $or: [
@@ -227,7 +235,7 @@ export class FriendshipController {
   }
 
   // Listar solicitações pendentes
-  public async listPendingRequests(req: Request, res: Response): Promise<Response> {
+  static async listPendingRequests(req: Request, res: Response): Promise<Response> {
     try {
       const userId = (req as AuthRequest).user?.id
 
@@ -359,6 +367,58 @@ export class FriendshipController {
       return res.status(500).json({
         success: false,
         message: 'Erro ao desfazer amizade'
+      })
+    }
+  }
+
+  static async checkFriendStatus(req: Request, res: Response): Promise<Response> {
+    try {
+      const userId = (req as AuthRequest).user?.id
+      const targetUserId = req.params.userId
+
+      // Verifica se os IDs são válidos
+      if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(targetUserId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'IDs de usuário inválidos'
+        })
+      }
+
+      // Busca relacionamento existente
+      const friendship = await Friendship.findOne({
+        $or: [
+          { requester: userId, recipient: targetUserId },
+          { requester: targetUserId, recipient: userId }
+        ]
+      })
+
+      if (!friendship) {
+        return res.json({
+          success: true,
+          data: {
+            status: FriendshipStatus.NONE,
+            friendshipId: null,
+            isRequester: false,
+            isRecipient: false
+          }
+        })
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          status: friendship.status,
+          friendshipId: friendship._id,
+          isRequester: friendship.requester.toString() === userId,
+          isRecipient: friendship.recipient.toString() === userId
+        }
+      })
+
+    } catch (error) {
+      console.error('Erro ao verificar status de amizade:', error)
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao verificar status de amizade'
       })
     }
   }

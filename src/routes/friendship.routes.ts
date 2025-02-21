@@ -12,5 +12,6 @@ router.post('/requests', authMiddleware, FriendshipController.sendFriendRequest)
 router.post('/requests/:requestId/accept', authMiddleware, FriendshipController.acceptFriendRequest)
 router.post('/requests/:requestId/reject', authMiddleware, FriendshipController.rejectFriendRequest)
 router.post('/:friendshipId/unfriend', authMiddleware, FriendshipController.unfriend)
+router.get('/status/:userId', authMiddleware, FriendshipController.checkFriendStatus)
 
 export default router

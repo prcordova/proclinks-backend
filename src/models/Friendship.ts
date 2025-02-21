@@ -50,4 +50,10 @@ export interface IFriendship extends mongoose.Document {
   updatedAt: Date;
 }
 
-export const Friendship = mongoose.model<IFriendship>('Friendship', friendshipSchema) 
+export const Friendship = mongoose.model<IFriendship>('Friendship', friendshipSchema)
+
+friendshipSchema.statics.generateFriendshipId = function(userId1: string, userId2: string) {
+  // Ordena os IDs para garantir consistência
+  const sortedIds = [userId1, userId2].sort()
+  return `${sortedIds[0]}_${sortedIds[1]}`
+} 
