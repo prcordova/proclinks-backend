@@ -101,9 +101,7 @@ export class FriendshipController {
       const userId = (req as AuthRequest).user?.id
       const requestId = req.params.requestId
 
-      console.log('Request ID:', requestId)
-      console.log('User ID:', userId)
-
+      // Busca a amizade e garante que é o destinatário quem está aceitando
       const friendship = await Friendship.findOne({
         _id: requestId,
         recipient: userId,
@@ -113,10 +111,11 @@ export class FriendshipController {
       if (!friendship) {
         return res.status(404).json({
           success: false,
-          message: 'Solicitação de amizade não encontrada'
+          message: 'Solicitação de amizade não encontrada ou você não tem permissão para aceitá-la'
         })
       }
 
+      // Atualiza o status
       friendship.status = FriendshipStatus.FRIENDLY
       friendship.updatedAt = new Date()
       await friendship.save()
@@ -140,25 +139,8 @@ export class FriendshipController {
       const userId = (req as AuthRequest).user?.id
       const requestId = req.params.requestId
 
-      console.log('User ID:', userId)
-      console.log('Request ID:', requestId)
-
-      // Primeiro, tenta encontrar por ID
-      let friendship = await Friendship.findOne({
-        _id: requestId,
-        status: FriendshipStatus.PENDING
-      })
-
-      // Se não encontrar por ID, tenta encontrar pela combinação de usuários
-      if (!friendship) {
-        friendship = await Friendship.findOne({
-          $or: [
-            { requester: userId, recipient: requestId },
-            { requester: requestId, recipient: userId }
-          ],
-          status: FriendshipStatus.PENDING
-        })
-      }
+      // Busca a amizade sem filtros inicialmente
+      const friendship = await Friendship.findById(requestId)
 
       if (!friendship) {
         return res.status(404).json({
@@ -167,14 +149,24 @@ export class FriendshipController {
         })
       }
 
-      // Verifica se o usuário tem permissão
-      if (friendship.requester.toString() !== userId && friendship.recipient.toString() !== userId) {
+      // Permite que tanto o recipient quanto o requester possam rejeitar/cancelar
+      if (friendship.recipient.toString() !== userId && 
+          friendship.requester.toString() !== userId) {
         return res.status(403).json({
           success: false,
-          message: 'Não autorizado a rejeitar esta solicitação'
+          message: 'Você não tem permissão para rejeitar esta solicitação'
         })
       }
 
+      // Verifica se a solicitação está pendente
+      if (friendship.status !== FriendshipStatus.PENDING) {
+        return res.status(400).json({
+          success: false,
+          message: 'Esta solicitação não está mais pendente'
+        })
+      }
+
+      // Atualiza o status
       friendship.status = FriendshipStatus.NONE
       friendship.updatedAt = new Date()
       await friendship.save()
