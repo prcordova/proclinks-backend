@@ -51,25 +51,26 @@ export class FriendshipController {
       })
 
       if (friendship) {
-        // Se já é amigo ou tem solicitação pendente, não permite alteração
-        if ([FriendshipStatus.FRIENDLY, FriendshipStatus.PENDING].includes(friendship.status)) {
-          return res.status(400).json({
-            success: false,
-            message: friendship.status === FriendshipStatus.FRIENDLY 
-              ? 'Vocês já são amigos' 
-              : 'Já existe uma solicitação pendente'
+        // Se o status é NONE, atualiza para PENDING com nova data
+        if (friendship.status === FriendshipStatus.NONE) {
+          friendship.status = FriendshipStatus.PENDING
+          friendship.createdAt = new Date() // Atualiza a data de criação
+          friendship.updatedAt = new Date()
+          await friendship.save()
+
+          return res.status(200).json({
+            success: true,
+            message: 'Solicitação de amizade enviada',
+            data: friendship
           })
         }
 
-        // Se o status é NONE, apenas atualiza para PENDING
-        friendship.status = FriendshipStatus.PENDING
-        friendship.updatedAt = new Date()
-        await friendship.save()
-
-        return res.status(200).json({
-          success: true,
-          message: 'Solicitação de amizade enviada',
-          data: friendship
+        // Se já é amigo ou tem solicitação pendente, não permite alteração
+        return res.status(400).json({
+          success: false,
+          message: friendship.status === FriendshipStatus.FRIENDLY 
+            ? 'Vocês já são amigos' 
+            : 'Já existe uma solicitação pendente'
         })
       }
 
@@ -391,7 +392,8 @@ export class FriendshipController {
             status: FriendshipStatus.NONE,
             friendshipId: null,
             isRequester: false,
-            isRecipient: false
+            isRecipient: false,
+            createdAt: null
           }
         })
       }
@@ -402,7 +404,8 @@ export class FriendshipController {
           status: friendship.status,
           friendshipId: friendship._id,
           isRequester: friendship.requester.toString() === userId,
-          isRecipient: friendship.recipient.toString() === userId
+          isRecipient: friendship.recipient.toString() === userId,
+          createdAt: friendship.createdAt
         }
       })
 
