@@ -54,8 +54,8 @@ export class PaymentsController {
           quantity: 1
         }],
         mode: 'subscription' as const,
-        success_url: `${process.env.FRONTEND_URL}/planos/sucesso?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/planos`,
+        success_url: `${process.env.FRONTEND_URL}/plans`,
+        cancel_url: `${process.env.FRONTEND_URL}/plans`,
         metadata: {
           userId: user._id.toString(),
           plano: plano

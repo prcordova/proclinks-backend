@@ -25,16 +25,16 @@ export const PLANOS = {
   BRONZE: {
     id: process.env.STRIPE_PRICE_BRONZE_ID!,
     name: 'BRONZE',
-    price: 29.90
+    price: 2.99
   },
   SILVER: {
     id: process.env.STRIPE_PRICE_SILVER_ID!,
     name: 'SILVER',
-    price: 49.90
+    price: 9.99
   },
   GOLD: {
     id: process.env.STRIPE_PRICE_GOLD_ID!,
     name: 'GOLD',
-    price: 99.90
+    price: 29.99
   }
 } as const;
