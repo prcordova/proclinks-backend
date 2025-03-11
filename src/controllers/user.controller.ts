@@ -352,22 +352,39 @@ export class UserController {
       console.log('Current User ID:', currentUserId)
       console.log('Amizades encontradas:', friendships)
 
-      // Criar mapa de amizades
+      // Criar mapa de amizades com informações completas
       const friendshipMap = new Map()
       friendships.forEach(friendship => {
         const otherUserId = friendship.requester.toString() === currentUserId 
           ? friendship.recipient.toString()
           : friendship.requester.toString()
         
-        friendshipMap.set(otherUserId, friendship.status)
+        friendshipMap.set(otherUserId, {
+          status: friendship.status,
+          friendshipId: friendship._id,
+          isRequester: friendship.requester.toString() === currentUserId,
+          isRecipient: friendship.recipient.toString() === currentUserId,
+          createdAt: friendship.createdAt
+        })
       })
 
       // Adicionar status de amizade aos usuários
       const usersWithFriendshipStatus = users.map(user => {
-        const status = friendshipMap.get(user._id.toString())
+        const friendshipInfo = friendshipMap.get(user._id.toString()) || {
+          status: FriendshipStatus.NONE,
+          friendshipId: null,
+          isRequester: false,
+          isRecipient: false,
+          createdAt: null
+        }
+        
         return {
           ...user,
-          friendshipStatus: status || FriendshipStatus.NONE
+          friendshipStatus: friendshipInfo.status,
+          friendshipId: friendshipInfo.friendshipId,
+          isRequester: friendshipInfo.isRequester,
+          isRecipient: friendshipInfo.isRecipient,
+          createdAt: friendshipInfo.createdAt
         }
       })
 
