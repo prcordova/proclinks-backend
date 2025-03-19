@@ -21,8 +21,8 @@ interface PopulatedUser {
 }
 
 interface IFriendship extends mongoose.Document {
-  requester: string | PopulatedUser;
-  recipient: string | PopulatedUser;
+  requester: mongoose.Types.ObjectId | PopulatedUser;
+  recipient: mongoose.Types.ObjectId | PopulatedUser;
   status: FriendshipStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -51,14 +51,19 @@ export class FriendshipController {
       })
 
       if (friendship) {
-        // Se o status é NONE, atualiza para PENDING com nova data
+        // Se o status é NONE, cria uma nova solicitação com os papéis corretos
         if (friendship.status === FriendshipStatus.NONE) {
-          friendship.status = FriendshipStatus.PENDING
-          friendship.createdAt = new Date() // Atualiza a data de criação
-          friendship.updatedAt = new Date()
-          await friendship.save()
+          // Remove o relacionamento antigo
+          await Friendship.findByIdAndDelete(friendship._id)
+          
+          // Cria um novo relacionamento com os papéis corretos
+          friendship = await Friendship.create({
+            requester: requesterId,
+            recipient: recipientId,
+            status: FriendshipStatus.PENDING
+          })
 
-          return res.status(200).json({
+          return res.status(201).json({
             success: true,
             message: 'Solicitação de amizade enviada',
             data: friendship
@@ -285,7 +290,16 @@ export class FriendshipController {
         success: true,
         data: requests.map(req => ({
           id: req._id,
-          user: req.recipient,
+          user: {
+            _id: (req.recipient as PopulatedUser)._id,
+            username: (req.recipient as PopulatedUser).username,
+            bio: (req.recipient as PopulatedUser).bio,
+            avatar: (req.recipient as PopulatedUser).avatar,
+            followers: (req.recipient as PopulatedUser).followers?.length || 0,
+            following: (req.recipient as PopulatedUser).following?.length || 0,
+            isRequester: true,
+            isRecipient: false
+          },
           createdAt: req.createdAt
         }))
       })
@@ -310,7 +324,16 @@ export class FriendshipController {
         success: true,
         data: requests.map(req => ({
           id: req._id,
-          user: req.requester,
+          user: {
+            _id: (req.requester as PopulatedUser)._id,
+            username: (req.requester as PopulatedUser).username,
+            bio: (req.requester as PopulatedUser).bio,
+            avatar: (req.requester as PopulatedUser).avatar,
+            followers: (req.requester as PopulatedUser).followers?.length || 0,
+            following: (req.requester as PopulatedUser).following?.length || 0,
+            isRequester: false,
+            isRecipient: true
+          },
           createdAt: req.createdAt
         }))
       })
@@ -345,11 +368,10 @@ export class FriendshipController {
         })
       }
 
-      // Atualiza o status para NONE em vez de UNFRIENDED
-      await Friendship.findByIdAndUpdate(friendshipId, {
-        status: FriendshipStatus.NONE,
-        updatedAt: new Date()
-      })
+      // Atualiza o status
+      friendship.status = FriendshipStatus.NONE
+      friendship.updatedAt = new Date()
+      await friendship.save()
 
       return res.json({
         success: true,
