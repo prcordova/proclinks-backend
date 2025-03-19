@@ -6,7 +6,8 @@ import { userRoutes } from './src/routes/user.routes'
 import { authRoutes } from './src/routes/auth.routes'
 import { linkRoutes } from './src/routes/link.routes'
 import { paymentsRoutes } from './src/routes/payments.routes'
-import friendshipRoutes from './src/routes/friendship.routes' 
+import friendshipRoutes from './src/routes/friendship.routes'
+import { messageRouter } from './src/routes/message.routes'
 
 import dotenv from 'dotenv'
 
@@ -41,5 +42,6 @@ app.use('/api/users', userRoutes)
 app.use('/api/links', linkRoutes)
 app.use('/api/payments', paymentsRoutes)
 app.use('/api/friendships', friendshipRoutes)
+app.use('/api/messages', messageRouter)
 
 export default app 

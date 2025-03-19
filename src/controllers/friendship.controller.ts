@@ -1,9 +1,9 @@
 import { Request, Response } from 'express'
 import { Friendship, FriendshipStatus } from '../models/Friendship'
- 
 import mongoose from 'mongoose'
- import { User } from '../models/User'
+import { User } from '../models/User'
 import { authMiddleware } from '../middlewares/auth.middleware'
+import { io } from '../../server'
 
 interface AuthRequest extends Request {
   user: {
@@ -28,10 +28,10 @@ interface IFriendship extends mongoose.Document {
   updatedAt: Date;
 }
 
-export class FriendshipController {
-  static async sendFriendRequest(req: Request, res: Response): Promise<Response> {
+export const FriendshipController = {
+  sendFriendRequest: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const requesterId = (req as AuthRequest).user?.id
+      const requesterId = req.user.id
       const { recipientId } = req.body
 
       // Evita auto-amizade
@@ -99,12 +99,11 @@ export class FriendshipController {
         message: 'Erro ao enviar solicitação de amizade'
       })
     }
-  }
+  },
 
-  // Aceitar solicitação de amizade
-  static async acceptFriendRequest(req: Request, res: Response): Promise<Response> {
+  acceptFriendRequest: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const userId = (req as AuthRequest).user?.id
+      const userId = req.user.id
       const requestId = req.params.requestId
 
       // Busca a amizade e garante que é o destinatário quem está aceitando
@@ -137,12 +136,11 @@ export class FriendshipController {
         message: 'Erro ao aceitar solicitação de amizade'
       })
     }
-  }
+  },
 
-  // Recusar/Cancelar solicitação de amizade
-  static async rejectFriendRequest(req: Request, res: Response): Promise<Response> {
+  rejectFriendRequest: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const userId = (req as AuthRequest).user?.id
+      const userId = req.user.id
       const requestId = req.params.requestId
 
       // Busca a amizade sem filtros inicialmente
@@ -188,12 +186,11 @@ export class FriendshipController {
         message: 'Erro ao rejeitar solicitação de amizade'
       })
     }
-  }
+  },
 
-  // Listar amigos
-  static async listFriends(req: Request, res: Response): Promise<Response> {
+  listFriends: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const userId = (req as AuthRequest).user?.id
+      const userId = req.user.id
 
       const friendships = await Friendship.find({
         $or: [
@@ -230,12 +227,11 @@ export class FriendshipController {
         message: 'Erro ao listar amigos'
       })
     }
-  }
+  },
 
-  // Listar solicitações pendentes
-  static async listPendingRequests(req: Request, res: Response): Promise<Response> {
+  listPendingRequests: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const userId = (req as AuthRequest).user?.id
+      const userId = req.user.id
 
       const pendingRequests = await Friendship
         .find({
@@ -276,11 +272,11 @@ export class FriendshipController {
         message: 'Erro ao listar solicitações pendentes'
       })
     }
-  }
+  },
 
-  static async listSentRequests(req: Request, res: Response): Promise<Response> {
+  listSentRequests: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const userId = (req as AuthRequest).user?.id
+      const userId = req.user.id
       const requests = await Friendship.find({
         requester: userId,
         status: FriendshipStatus.PENDING
@@ -310,11 +306,11 @@ export class FriendshipController {
         message: 'Erro ao listar solicitações enviadas' 
       })
     }
-  }
+  },
 
-  static async listReceivedRequests(req: Request, res: Response): Promise<Response> {
+  listReceivedRequests: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const userId = (req as AuthRequest).user?.id
+      const userId = req.user.id
       const requests = await Friendship.find({
         recipient: userId,
         status: FriendshipStatus.PENDING
@@ -344,51 +340,65 @@ export class FriendshipController {
         message: 'Erro ao listar solicitações recebidas'
       })
     }
-  }
+  },
 
-  static async unfriend(req: Request, res: Response): Promise<Response> {
+  unfriend: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const userId = (req as AuthRequest).user?.id
-      const friendshipId = req.params.friendshipId
+      const { friendshipId } = req.params
+      const userId = req.user.id
 
       const friendship = await Friendship.findById(friendshipId)
 
       if (!friendship) {
-        return res.status(404).json({
-          success: false,
-          message: 'Amizade não encontrada'
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Amizade não encontrada' 
         })
       }
 
-      // Verifica se o usuário é parte da amizade
-      if (friendship.requester.toString() !== userId && friendship.recipient.toString() !== userId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Não autorizado'
+      // Verifica se o usuário tem permissão para desfazer a amizade
+      if (friendship.requester.toString() !== userId && 
+          friendship.recipient.toString() !== userId) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Você não tem permissão para desfazer esta amizade' 
         })
       }
 
-      // Atualiza o status
+      // Atualiza o status para NONE
       friendship.status = FriendshipStatus.NONE
-      friendship.updatedAt = new Date()
       await friendship.save()
 
-      return res.json({
-        success: true,
-        message: 'Amizade desfeita com sucesso'
+      // Obtém os IDs dos usuários envolvidos
+      const otherUserId = friendship.requester.toString() === userId 
+        ? friendship.recipient.toString() 
+        : friendship.requester.toString()
+
+      // Emite evento de atualização de amizade para ambos os usuários
+      io.emit('friendship_update', {
+        userId,
+        otherUserId,
+        status: FriendshipStatus.NONE
       })
+
+      return res.status(200).json({
+        success: true,
+        message: 'Amizade desfeita com sucesso',
+        data: friendship
+      })
+
     } catch (error) {
       console.error('Erro ao desfazer amizade:', error)
-      return res.status(500).json({
-        success: false,
-        message: 'Erro ao desfazer amizade'
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Erro ao desfazer amizade' 
       })
     }
-  }
+  },
 
-  static async checkFriendStatus(req: Request, res: Response): Promise<Response> {
+  checkFriendStatus: async (req: AuthRequest, res: Response): Promise<Response> => {
     try {
-      const userId = (req as AuthRequest).user?.id
+      const userId = req.user.id
       const targetUserId = req.params.userId
 
       // Verifica se os IDs são válidos
