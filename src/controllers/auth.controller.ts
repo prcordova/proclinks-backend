@@ -10,7 +10,6 @@ export const register = async (req: Request, res: Response) => {
       username, 
       email, 
       password, 
-   
       phone, 
       termsAccepted,
       birthDate,

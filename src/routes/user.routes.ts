@@ -41,7 +41,7 @@ userRouter.get('/:username', (req: Request, res: Response) =>
   userController.getPublicProfile(req, res)
 )
 
-userRouter.get('/', userController.listUsers)
+userRouter.get('/', authMiddleware, userController.listUsers.bind(userController))
 
 userRouter.post('/:userId/follow', authMiddleware, userController.followUser)
 userRouter.delete('/:userId/follow', authMiddleware, userController.unfollowUser)

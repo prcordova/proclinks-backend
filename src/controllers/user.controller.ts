@@ -5,6 +5,9 @@ import path from "path";
 import fs from "fs";
 import { PlanType, PlanStatus, PLAN_FEATURES } from "../models/Plans";
 import { UploadService } from '../services/upload.service';
+import { Friendship } from "../models/Friendship";
+import { FriendshipStatus } from "../models/Friendship";
+import mongoose from "mongoose";
 
 interface AuthRequest extends Request {
   user: {
@@ -303,89 +306,107 @@ export class UserController {
     }
   }
 
-  async listUsers(req: Request, res: Response) {
+  public async listUsers(req: Request, res: Response): Promise<Response> {
     try {
-      const { page = 1, limit = 20, filter = "popular", search } = req.query;
-      const skip = (Number(page) - 1) * Number(limit);
+      console.log('Headers:', req.headers)
+      console.log('Auth User:', (req as AuthRequest).user)
+      
+      const currentUserId = (req as any).user?._id || (req as AuthRequest).user?.id
 
-      // Condição base de match
-      const matchCondition: any = { 
-        isPublic: true,
-        ...(search && {
-          $or: [
-            { username: { $regex: `^${search}`, $options: 'i' } },
-            { name: { $regex: `^${search}`, $options: 'i' } },
-            { bio: { $regex: search, $options: 'i' } }
-          ]
+      if (!currentUserId) {
+        console.log('Auth falhou. Request completo:', {
+          headers: req.headers,
+          user: (req as any).user,
+          authUser: (req as AuthRequest).user
         })
-      };
+        return res.status(401).json({
+          success: false,
+          message: 'Usuário não autenticado'
+        })
+      }
 
-      // Determina a ordenação baseada no filtro
-      const sortCondition: Record<string, 1 | -1> = filter === 'recent' 
-        ? { createdAt: -1 } 
-        : { relevanceScore: -1 };
+      const { page = 1, limit = 20, filter, search } = req.query
 
-      const featuredUsers = await User.aggregate([
-        { $match: matchCondition },
-        {
-          $addFields: {
-            relevanceScore: {
-              $add: [
-                {
-                  $switch: {
-                    branches: [
-                      { case: { $eq: ["$plan.type", "GOLD"] }, then: 100 },
-                      { case: { $eq: ["$plan.type", "SILVER"] }, then: 50 },
-                      { case: { $eq: ["$plan.type", "BRONZE"] }, then: 25 },
-                    ],
-                    default: 0,
-                  },
-                },
-                { $multiply: [{ $size: "$followers" }, 0.5] },
-                { $multiply: [{ $sum: "$links.likes" }, 0.3] },
-                {
-                  $cond: {
-                    if: {
-                      $gte: [
-                        "$lastLogin",
-                        { $subtract: [new Date(), 7 * 24 * 60 * 60 * 1000] },
-                      ],
-                    },
-                    then: 30,
-                    else: 0,
-                  },
-                },
-              ],
-            },
-          },
-        },
-        { $sort: sortCondition },
-        { $skip: skip },
-        { $limit: Number(limit) },
-        {
-          $project: {
-            _id: 1,
-            username: 1,
-            avatar: 1,
-            bio: 1,
-            followers: { $size: "$followers" },
-            following: { $size: "$following" },
-            "plan.type": 1,
-            relevanceScore: 1,
-            createdAt: 1
-          }
+      let query = {}
+      if (search) {
+        query = {
+          username: { $regex: search, $options: 'i' }
         }
-      ]);
+      }
 
-      res.json({
-        searchResults: search ? featuredUsers : [], // Retorna resultados da busca se houver search
-        featuredUsers: search ? [] : featuredUsers, // Retorna featured apenas se não houver search
-        page: Number(page),
-        hasMore: featuredUsers.length === Number(limit),
-      });
+      const users = await User.find({ 
+        ...query, 
+        _id: { $ne: currentUserId } 
+      })
+      .select('username bio avatar plan followers following')
+      .lean()
+
+      // Buscar todas as amizades do usuário atual
+      const friendships = await Friendship.find({
+        $or: [
+          { requester: currentUserId },
+          { recipient: currentUserId }
+        ]
+      }).lean()
+
+      console.log('Current User ID:', currentUserId)
+      console.log('Amizades encontradas:', friendships)
+
+      // Criar mapa de amizades com informações completas
+      const friendshipMap = new Map()
+      friendships.forEach(friendship => {
+        const otherUserId = friendship.requester.toString() === currentUserId 
+          ? friendship.recipient.toString()
+          : friendship.requester.toString()
+        
+        friendshipMap.set(otherUserId, {
+          status: friendship.status,
+          friendshipId: friendship._id,
+          isRequester: friendship.requester.toString() === currentUserId,
+          isRecipient: friendship.recipient.toString() === currentUserId,
+          createdAt: friendship.createdAt
+        })
+      })
+
+      // Adicionar status de amizade aos usuários
+      const usersWithFriendshipStatus = users.map(user => {
+        const friendshipInfo = friendshipMap.get(user._id.toString()) || {
+          status: FriendshipStatus.NONE,
+          friendshipId: null,
+          isRequester: false,
+          isRecipient: false,
+          createdAt: null
+        }
+        
+        return {
+          ...user,
+          friendshipStatus: friendshipInfo.status,
+          friendshipId: friendshipInfo.friendshipId,
+          isRequester: friendshipInfo.isRequester,
+          isRecipient: friendshipInfo.isRecipient,
+          createdAt: friendshipInfo.createdAt
+        }
+      })
+
+      const featuredUsers = search ? [] : usersWithFriendshipStatus
+      const searchResults = search ? usersWithFriendshipStatus : []
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          searchResults,
+          featuredUsers,
+          page: Number(page),
+          hasMore: users.length === Number(limit)
+        }
+      })
+
     } catch (error) {
-      console.error("Erro ao listar usuários:", error);
-      res.status(500).json({ message: "Erro ao listar usuários" });
+      console.error('Erro ao listar usuários:', error)
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao listar usuários'
+      })
     }
   }
 
