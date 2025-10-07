@@ -6,6 +6,9 @@ const messageRouter = Router()
 
 messageRouter.use(authMiddleware)
 
+// Buscar todas as conversas do usuário
+messageRouter.get('/conversations/:userId?', messageController.getConversations)
+
 // Buscar histórico de mensagens
 messageRouter.get('/:userId/:otherUserId', messageController.getMessages)
 
