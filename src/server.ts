@@ -1,6 +1,6 @@
 import { Server } from 'socket.io'
 import { createServer } from 'http'
-import { app } from './app'
+import app  from '../app'
 import { env } from './config/env'
 
 const httpServer = createServer(app)
