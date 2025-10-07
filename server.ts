@@ -15,7 +15,9 @@ const io = new Server(httpServer, {
       'https://www.melter.com.br', 
       'https://proclinks.vercel.app',
       'http://localhost:3000',
-      'https://proclinks-avatars-dev.s3.us-east-2.amazonaws.com'
+      'https://proclinks-avatars-dev.s3.us-east-2.amazonaws.com',
+      // Adiciona suporte para todos os previews da Vercel
+      /^https:\/\/proclinks-.*\.vercel\.app$/
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
