@@ -30,7 +30,7 @@ interface PopulatedUser {
   followers: string[];
   following: string[];
   plan?: {
-    type: 'FREE' | 'BRONZE' | 'SILVER' | 'GOLD';
+    type: 'FREE' | 'STARTER' | 'PRO';
   };
 }
 

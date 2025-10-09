@@ -1,8 +1,7 @@
 export enum PlanType {
   FREE = 'FREE',
-  BRONZE = 'BRONZE',
-  SILVER = 'SILVER',
-  GOLD = 'GOLD'
+  STARTER = 'STARTER',
+  PRO = 'PRO'
 }
 
 export enum PlanStatus {
@@ -18,6 +17,7 @@ export interface PlanFeatures {
   analytics: boolean;
   priority: boolean;
   support: 'basic' | 'priority' | 'vip';
+  verifiedBadge: boolean;
 }
 
 export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
@@ -26,27 +26,29 @@ export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
     customization: false,
     analytics: false,
     priority: false,
-    support: 'basic'
+    support: 'basic',
+    verifiedBadge: false
   },
-  BRONZE: {
-    maxLinks: 5,
-    customization: true,
-    analytics: false,
-    priority: false,
-    support: 'basic'
-  },
-  SILVER: {
+  STARTER: {
     maxLinks: 10,
     customization: true,
     analytics: true,
     priority: false,
-    support: 'priority'
+    support: 'priority',
+    verifiedBadge: false
   },
-  GOLD: {
+  PRO: {
     maxLinks: 50,
     customization: true,
     analytics: true,
     priority: true,
-    support: 'vip'
+    support: 'vip',
+    verifiedBadge: true
   }
-} 
+}
+
+export const PLAN_PRICES: Record<PlanType, number> = {
+  FREE: 0,
+  STARTER: 4.99,
+  PRO: 29.99
+}

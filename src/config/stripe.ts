@@ -1,40 +1,39 @@
 import Stripe from 'stripe';
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY não está definida');
-}
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
 
-// Verificar todas as variáveis de ambiente necessárias
-const requiredEnvVars = {
-  STRIPE_PRICE_BRONZE_ID: process.env.STRIPE_PRICE_BRONZE_ID,
-  STRIPE_PRICE_SILVER_ID: process.env.STRIPE_PRICE_SILVER_ID,
-  STRIPE_PRICE_GOLD_ID: process.env.STRIPE_PRICE_GOLD_ID,
-};
-
-for (const [key, value] of Object.entries(requiredEnvVars)) {
-  if (!value) {
-    throw new Error(`Variável de ambiente ${key} não está definida`);
-  }
-}
-
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+export const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2025-01-27.acacia'
 });
 
 export const PLANOS = {
-  BRONZE: {
-    id: process.env.STRIPE_PRICE_BRONZE_ID!,
-    name: 'BRONZE',
-    price: 2.99
+  STARTER: {
+    id: process.env.STRIPE_PRICE_STARTER_ID || 'price_starter_placeholder',
+    name: 'STARTER',
+    price: 4.99
   },
-  SILVER: {
-    id: process.env.STRIPE_PRICE_SILVER_ID!,
-    name: 'SILVER',
-    price: 9.99
-  },
-  GOLD: {
-    id: process.env.STRIPE_PRICE_GOLD_ID!,
-    name: 'GOLD',
+  PRO: {
+    id: process.env.STRIPE_PRICE_PRO_ID || 'price_pro_placeholder',
+    name: 'PRO',
     price: 29.99
   }
 } as const;
+
+// Função para validar variáveis de ambiente quando necessário
+export function validateStripeConfig() {
+  const requiredEnvVars = {
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_PRICE_STARTER_ID: process.env.STRIPE_PRICE_STARTER_ID,
+    STRIPE_PRICE_PRO_ID: process.env.STRIPE_PRICE_PRO_ID,
+  };
+
+  const missingVars = Object.entries(requiredEnvVars)
+    .filter(([_, value]) => !value)
+    .map(([key]) => key);
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Configuração do Stripe incompleta. Variáveis faltando: ${missingVars.join(', ')}`
+    );
+  }
+}

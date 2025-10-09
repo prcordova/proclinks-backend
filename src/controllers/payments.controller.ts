@@ -123,7 +123,7 @@ export class PaymentsController {
             session
           });
 
-          if (!['BRONZE', 'SILVER', 'GOLD'].includes(plano)) {
+          if (!['STARTER', 'PRO'].includes(plano)) {
             throw new Error(`Tipo de plano inválido: ${plano}`);
           }
 

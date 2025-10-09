@@ -4,9 +4,8 @@ import { PlanType, PlanStatus } from './Plans'
 
 export enum UserPlanType {
   FREE = 'FREE',
-  BRONZE = 'BRONZE',
-  SILVER = 'SILVER',
-  GOLD = 'GOLD'
+  STARTER = 'STARTER',
+  PRO = 'PRO'
 }
 
 interface IPlan {
